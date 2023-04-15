@@ -1,6 +1,7 @@
 use crate::camera;
 use crate::image::*;
 use crate::math;
+use crate::scanline::*;
 
 struct Viewport {
     x: i32,
@@ -46,12 +47,16 @@ impl Renderer {
         vertices: &[math::Vec3; 3],
         color: &math::Vec4,
     ) {
+        // 1. convert 3D coordination to Homogeneous coordinates
         let mut vertices = vertices.map(|v| math::Vec4::from_vec3(&v, 1.0));
+
+        // 2. MVP transform
         for v in &mut vertices {
             *v = *self.camera.get_frustum().get_mat() * *model * *v;
             *v /= v.w;
         }
 
+        // 3. Viewport transform
         let vertices = vertices.map(|v| {
             math::Vec2::new(
                 (v.x + 1.0) * 0.5 * (self.viewport.w as f32 - 1.0) + self.viewport.x as f32,
@@ -60,11 +65,53 @@ impl Renderer {
             )
         });
 
+
+        // 4. split triangle into trapeziods
+        let [trap1, trap2] = &mut Trapezoid::from_triangle(&vertices);
+
+        // 6. rasterization trapeziods
+        if let Some(trap) = trap1 {
+            self.draw_trapezoid(trap, color);
+        }
+        if let Some(trap) = trap2 {
+            self.draw_trapezoid(trap, color);
+        }
+
+
         for i in 0..vertices.len() {
             let p1 = &vertices[i];
             let p2 = &vertices[(i + 1) % vertices.len()];
 
             self.draw_line(p1, p2, color);
+        }
+    }
+
+    fn draw_trapezoid(&mut self, trap: &Trapezoid, color: &math::Vec4) {
+        let top = (trap.top.ceil().max(0.0)) as i32;
+        let bottom =
+            (trap.bottom.ceil()).min(self.color_attachment.height() as f32 - 1.0) as i32 - 1;
+        let mut y = top as f32;
+
+        while y <= bottom as f32 {
+            let mut scanline = Scanline::from_trapezoid(&trap, y);
+            self.draw_scanline(&mut scanline, color);
+            y += 1.0;
+        }
+    }
+
+    fn draw_scanline(&mut self, scanline: &mut Scanline, color: &math::Vec4) {
+        let vertex = &mut scanline.vertex;
+        let y = scanline.y as u32;
+        while scanline.width > 0.0 {
+            let x = vertex.x;
+
+            if x >= 0.0 && x < self.color_attachment.width() as f32 {
+                let x = x as u32;
+                self.color_attachment.set(x, y, &color)
+            }
+
+            scanline.width -= 1.0;
+            *vertex += scanline.step;
         }
     }
 
