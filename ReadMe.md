@@ -2,43 +2,9 @@ A cpu 3D renderer based on pure rust.
 
 使用纯Rust编写的3D软渲染器。
 
-## 目前的效果
+[B站视频教程](https://www.bilibili.com/video/BV1Nv4y1p79o/?spm_id_from=333.999.0.0&vd_source=cb60c670b9b482f512a7f10d235b9b30)
 
-Blinn-Phong着色中的定向光:
-
-![dir_light](./snapshot/dir_light.png)
-
-Blinn-Phong着色中的点光源:
-
-![dot_light](./snapshot/dot_light.png)
-
-Blinn-Phong着色中的聚光光源:
-
-![spot_light](./snapshot/spot_light.png)
-
-## 目前实现的功能
-
-- [x] obj文件加载
-- [x] 线框模型的绘制（直线绘制使用`Bresenham`算法）
-- [x] 剔除
-    - [x] 面剔除（模型空间面剔除）
-    - [x] 视锥剔除（相机空间面剔除）
-- [x] 裁剪
-    - [x] 直线裁剪（使用`Cohen-Sutherland`算法）
-    - [x] 近平面三角面裁剪
-- [x] 摄像机
-    - [x] 基于欧拉角的自由旋转摄像机
-    - [x] 基于视点和坐标的LookAt相机
-- [x] 深度测试
-- [x] 纹理绘制
-- [x] 光栅化
-- [x] 可编程着色器
-- [ ] 着色与光照
-    - [x] BlinnPhong光照
-    - [ ] 法线贴图
-    - [x] 平行光
-    - [x] 点光源
-    - [x] 聚光
+之前写了一份完整的，源码放在Release下了。这个是重置版本。重置完之后会删掉Release版本。
 
 ## 参考
 
