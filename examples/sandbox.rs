@@ -1,12 +1,12 @@
 use fltk::app::set_visual;
 use fltk::enums::Mode;
 use fltk::{prelude::*, window::Window};
-use rs_cpurenderer::{camera, math, renderer};
+use rs_cpurenderer::{camera, math, renderer::RendererInterface, cpu_renderer};
 
 const WINDOW_WIDTH: u32 = 1024;
 const WINDOW_HEIGHT: u32 = 720;
 
-fn swap_context(renderer: &mut renderer::Renderer) {
+fn swap_context(renderer: &mut Box<impl RendererInterface>) {
     let result = renderer.get_rendered_image();
     fltk::draw::draw_image(
         result,
@@ -25,7 +25,7 @@ fn main() {
         WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32,
         30f32.to_radians(),
     );
-    let mut renderer = renderer::Renderer::new(WINDOW_WIDTH, WINDOW_HEIGHT, camera);
+    let mut renderer = Box::new(cpu_renderer::Renderer::new(WINDOW_WIDTH, WINDOW_HEIGHT, camera));
 
     let app = fltk::app::App::default();
     let mut wind = Window::new(
