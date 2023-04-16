@@ -1,4 +1,4 @@
-use crate::{renderer, image::ColorAttachment, camera, math, scanline::Trapezoid, scanline::*};
+use crate::{camera, image::ColorAttachment, math, renderer, scanline::Trapezoid, scanline::*};
 
 pub struct Renderer {
     color_attachment: ColorAttachment,
@@ -7,14 +7,6 @@ pub struct Renderer {
 }
 
 impl renderer::RendererInterface for Renderer {
-    fn new(w: u32, h: u32, camera: camera::Camera) -> Self {
-        Self {
-            color_attachment: ColorAttachment::new(w, h),
-            camera,
-            viewport: renderer::Viewport { x: 0, y: 0, w, h },
-        }
-    }
-
     fn clear(&mut self, color: &math::Vec4) {
         self.color_attachment.clear(color);
     }
@@ -55,7 +47,6 @@ impl renderer::RendererInterface for Renderer {
             )
         });
 
-
         // 4. split triangle into trapeziods
         let [trap1, trap2] = &mut Trapezoid::from_triangle(&vertices);
 
@@ -67,7 +58,6 @@ impl renderer::RendererInterface for Renderer {
             self.draw_trapezoid(trap, color);
         }
 
-
         for i in 0..vertices.len() {
             let p1 = &vertices[i];
             let p2 = &vertices[(i + 1) % vertices.len()];
@@ -78,6 +68,14 @@ impl renderer::RendererInterface for Renderer {
 }
 
 impl Renderer {
+    pub fn new(w: u32, h: u32, camera: camera::Camera) -> Self {
+        Self {
+            color_attachment: ColorAttachment::new(w, h),
+            camera,
+            viewport: renderer::Viewport { x: 0, y: 0, w, h },
+        }
+    }
+
     fn draw_trapezoid(&mut self, trap: &Trapezoid, color: &math::Vec4) {
         let top = (trap.top.ceil().max(0.0)) as i32;
         let bottom =

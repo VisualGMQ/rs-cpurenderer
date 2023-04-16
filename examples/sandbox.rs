@@ -1,12 +1,12 @@
 use fltk::app::set_visual;
 use fltk::enums::Mode;
 use fltk::{prelude::*, window::Window};
-use rs_cpurenderer::{camera, math, renderer::RendererInterface, cpu_renderer};
+use rs_cpurenderer::{camera, cpu_renderer, gpu_renderer, math, renderer::RendererInterface};
 
 const WINDOW_WIDTH: u32 = 1024;
 const WINDOW_HEIGHT: u32 = 720;
 
-fn swap_context(renderer: &mut Box<impl RendererInterface>) {
+fn swap_context(renderer: &mut Box<dyn RendererInterface>) {
     let result = renderer.get_rendered_image();
     fltk::draw::draw_image(
         result,
@@ -19,13 +19,36 @@ fn swap_context(renderer: &mut Box<impl RendererInterface>) {
     .unwrap();
 }
 
+pub fn create_renderer(w: u32, h: u32, camera: camera::Camera) -> Box<dyn RendererInterface> {
+    if cfg!(feature="cpu") {
+        println!("use cpu renderer");
+        Box::new(cpu_renderer::Renderer::new(
+            w,
+            h,
+            camera,
+        ))
+    } else {
+        println!("use gpu renderer");
+        Box::new(gpu_renderer::Renderer::new(
+            w,
+            h,
+            camera,
+        ))
+    }
+}
+
 fn main() {
     let camera = camera::Camera::new(
         1.0,
+        1000.0,
         WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32,
         30f32.to_radians(),
     );
-    let mut renderer = Box::new(cpu_renderer::Renderer::new(WINDOW_WIDTH, WINDOW_HEIGHT, camera));
+    let mut renderer = create_renderer(
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        camera,
+    );
 
     let app = fltk::app::App::default();
     let mut wind = Window::new(

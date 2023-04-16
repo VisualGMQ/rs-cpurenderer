@@ -1,4 +1,3 @@
-use crate::camera;
 use crate::image::*;
 use crate::math;
 
@@ -10,7 +9,6 @@ pub struct Viewport {
 }
 
 pub trait RendererInterface {
-    fn new(w: u32, h: u32, camera: camera::Camera) -> Self;
     fn clear(&mut self, color: &math::Vec4);
     fn get_canva_width(&self) -> u32;
     fn get_canva_height(&self) -> u32;
@@ -96,30 +94,45 @@ mod cohen_sutherland {
     }
 }
 
-
 /// [Bresenham Algorithm](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm#)
 pub mod bresenham {
-    use super::ColorAttachment;
     use super::cohen_sutherland;
     use super::math;
+    use super::ColorAttachment;
 
-    pub fn draw_line(texture: &mut ColorAttachment, p1: &math::Vec2, p2: &math::Vec2, color: &math::Vec4) {
+    pub fn draw_line(
+        texture: &mut ColorAttachment,
+        p1: &math::Vec2,
+        p2: &math::Vec2,
+        color: &math::Vec4,
+    ) {
         let clip_result = cohen_sutherland::cohen_sutherland_line_clip(
             p1,
             p2,
             &math::Vec2::zero(),
-            &math::Vec2::new(
-                texture.width() as f32 - 1.0,
-                texture.height() as f32 - 1.0,
-            ),
+            &math::Vec2::new(texture.width() as f32 - 1.0, texture.height() as f32 - 1.0),
         );
 
         if let Some((p1, p2)) = clip_result {
-            draw_line_without_clip(texture, p1.x as i32, p1.y as i32, p2.x as i32, p2.y as i32, color);
+            draw_line_without_clip(
+                texture,
+                p1.x as i32,
+                p1.y as i32,
+                p2.x as i32,
+                p2.y as i32,
+                color,
+            );
         }
     }
 
-    fn draw_line_without_clip(texture: &mut ColorAttachment, x0: i32, y0: i32, x1: i32, y1: i32, color: &math::Vec4) {
+    fn draw_line_without_clip(
+        texture: &mut ColorAttachment,
+        x0: i32,
+        y0: i32,
+        x1: i32,
+        y1: i32,
+        color: &math::Vec4,
+    ) {
         let mut dx = (x1 - x0).abs();
         let mut dy = (y1 - y0).abs();
         let mut sx = if x1 >= x0 { 1 } else { -1 };

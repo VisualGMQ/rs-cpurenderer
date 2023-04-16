@@ -20,8 +20,8 @@ impl Trapezoid {
         let mut vertices = *vertices;
         vertices.sort_by(|a, b| a.y.partial_cmp(&b.y).unwrap());
 
-        if (vertices[0].x == vertices[1].x && vertices[0].x == vertices[2].x) ||
-            (vertices[0].y == vertices[1].y && vertices[0].y == vertices[2].y)
+        if (vertices[0].x == vertices[1].x && vertices[0].x == vertices[2].x)
+            || (vertices[0].y == vertices[1].y && vertices[0].y == vertices[2].y)
         {
             return [None, None];
         }
@@ -66,8 +66,7 @@ impl Trapezoid {
             return [Some(trap), None];
         }
 
-        let x = (vertices[1].y - vertices[0].y)
-            / (vertices[2].y - vertices[0].y)
+        let x = (vertices[1].y - vertices[0].y) / (vertices[2].y - vertices[0].y)
             * (vertices[2].x - vertices[0].x)
             + vertices[0].x;
 
@@ -129,7 +128,6 @@ impl Trapezoid {
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct Scanline {
     pub vertex: Vec2,
@@ -138,13 +136,10 @@ pub struct Scanline {
     pub width: f32,
 }
 
-
 impl Scanline {
     pub fn from_trapezoid(trap: &Trapezoid, init_y: f32) -> Scanline {
-        let t1 =
-            (init_y - trap.left.v1.y) / (trap.left.v2.y - trap.left.v1.y);
-        let t2 =
-            (init_y - trap.right.v1.y) / (trap.right.v2.y - trap.right.v1.y);
+        let t1 = (init_y - trap.left.v1.y) / (trap.left.v2.y - trap.left.v1.y);
+        let t2 = (init_y - trap.right.v1.y) / (trap.right.v2.y - trap.right.v1.y);
 
         let vertex_left = lerp(trap.left.v1, trap.left.v2, t1);
         let vertex_right = lerp(trap.right.v1, trap.right.v2, t2);
