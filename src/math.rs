@@ -767,19 +767,28 @@ mod test {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn mat_math_algorithm() {
         let m1 = Mat4::from_row(&[
-            1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16.,
+            1., 2., 3., 4.,
+            5., 6., 7., 8.,
+            9., 10., 11., 12.,
+            13., 14., 15., 16.,
         ]);
         let m2 = Mat4::from_row(&[
-            2., 1., 4., 3., 8., 7., 1., 9., 0., 6., 5., 2., 8., 9., 4., 3.,
+            2., 1., 4., 3.,
+            8., 7., 1., 9.,
+            0., 6., 5., 2.,
+            8., 9., 4., 3.,
         ]);
 
         let result = m1 * m2;
 
         let check_result = Mat4::from_row(&[
-            50., 69., 37., 39., 122., 161., 93., 107., 194., 253., 149., 175., 266., 345., 205.,
-            243.,
+            50., 69., 37., 39.,
+            122., 161., 93., 107.,
+            194., 253., 149., 175.,
+            266., 345., 205., 243.,
         ]);
         assert_eq!(result, check_result);
     }
@@ -790,4 +799,35 @@ where
     T: Sub<Output = T> + Add<Output = T> + Mul<f32, Output = T> + Copy + Clone,
 {
     a + (b - a) * t
+}
+
+pub struct Berycentric {
+    alpha: f32,
+    beta: f32,
+    gamma: f32,
+}
+
+impl Berycentric {
+    pub fn new(pt: &Vec2, triangle: &[Vec2; 3]) -> Self {
+        let area_twice = (triangle[1] - triangle[0]).cross(&(triangle[2] - triangle[0]));
+        let alpha = ((triangle[1] - *pt).cross(&(triangle[2] - *pt)) / area_twice).abs();
+        let beta = ((triangle[0] - *pt).cross(&(triangle[2] - *pt)) / area_twice).abs();
+        let gamma = ((triangle[0] - *pt).cross(&(triangle[1] - *pt)) / area_twice).abs();
+
+        Self { alpha, beta, gamma }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.alpha + self.beta + self.gamma <= 1.000001
+    }
+
+    pub fn alpha(&self) -> f32 {
+        self.alpha
+    }
+    pub fn beta(&self) -> f32 {
+        self.beta
+    }
+    pub fn gamma(&self) -> f32 {
+        self.gamma
+    }
 }

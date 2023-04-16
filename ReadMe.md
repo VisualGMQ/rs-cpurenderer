@@ -31,3 +31,4 @@ A cpu 3D renderer based on pure rust.
 * [OpenGL 和 DirectX 是如何在只知道顶点的情况下得出像素位置的](https://www.zhihu.com/question/48299522/answer/799333394)
 * [RenderHelp项目](https://github.com/skywind3000/RenderHelp)
 * [mini3d项目](https://github.com/skywind3000/mini3d)
+* [光栅化实现](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html)

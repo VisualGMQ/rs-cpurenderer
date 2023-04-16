@@ -43,6 +43,10 @@ impl Frustum {
     pub fn get_mat(&self) -> &math::Mat4 {
         &self.mat
     }
+
+    pub fn near(&self) -> f32 {
+        self.near
+    }
 }
 
 pub struct Camera {

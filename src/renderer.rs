@@ -1,5 +1,11 @@
+use image::GenericImageView;
+
 use crate::image::*;
 use crate::math;
+use crate::vertex::Vertex;
+
+pub const ATTR_COLOR: usize = 0;
+pub const ATTR_TEXCOORD: usize = 1;
 
 pub struct Viewport {
     pub x: i32,
@@ -12,8 +18,27 @@ pub trait RendererInterface {
     fn clear(&mut self, color: &math::Vec4);
     fn get_canva_width(&self) -> u32;
     fn get_canva_height(&self) -> u32;
-    fn draw_triangle(&mut self, model: &math::Mat4, vertices: &[math::Vec3; 3], color: &math::Vec4);
+    fn draw_triangle(
+        &mut self,
+        model: &math::Mat4,
+        vertices: &[Vertex],
+        count: u32,
+        texture: Option<&image::DynamicImage>,
+    );
     fn get_rendered_image(&self) -> &[u8];
+}
+
+pub fn texture_sample(texture: &image::DynamicImage, texcoord: &math::Vec2) -> math::Vec4 {
+    let x = (texcoord.x * (texture.width() - 1) as f32) as u32;
+    let y = (texcoord.y * ((texture.height() - 1) as f32)) as u32;
+    let pixel = texture.get_pixel(x, y);
+    let data = &pixel.0;
+    math::Vec4::new(
+        data[0] as f32 / 255.0,
+        data[1] as f32 / 255.0,
+        data[2] as f32 / 255.0,
+        data[3] as f32 / 255.0,
+    )
 }
 
 /// [Cohen-Sutherland Algorithm](https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm)

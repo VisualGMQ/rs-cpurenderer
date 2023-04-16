@@ -1,4 +1,12 @@
-use crate::{camera, image::ColorAttachment, math, renderer, scanline::Trapezoid, scanline::*};
+use crate::{
+    camera,
+    image::ColorAttachment,
+    math,
+    renderer::{self, texture_sample, ATTR_COLOR, ATTR_TEXCOORD},
+    scanline::Trapezoid,
+    scanline::*,
+    vertex::{self, Vertex},
+};
 
 pub struct Renderer {
     color_attachment: ColorAttachment,
@@ -26,43 +34,55 @@ impl renderer::RendererInterface for Renderer {
     fn draw_triangle(
         &mut self,
         model: &math::Mat4,
-        vertices: &[math::Vec3; 3],
-        color: &math::Vec4,
+        vertices: &[Vertex],
+        count: u32,
+        texture: Option<&image::DynamicImage>,
     ) {
-        // 1. convert 3D coordination to Homogeneous coordinates
-        let mut vertices = vertices.map(|v| math::Vec4::from_vec3(&v, 1.0));
+        for i in 0..count as usize {
+            // 1. convert 3D coordination to Homogeneous coordinates
+            let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
-        // 2. MVP transform
-        for v in &mut vertices {
-            *v = *self.camera.get_frustum().get_mat() * *model * *v;
-            *v /= v.w;
-        }
+            // 2. MV transform
+            for v in &mut vertices {
+                v.position = *model * v.position;
+            }
 
-        // 3. Viewport transform
-        let vertices = vertices.map(|v| {
-            math::Vec2::new(
-                (v.x + 1.0) * 0.5 * (self.viewport.w as f32 - 1.0) + self.viewport.x as f32,
-                self.viewport.h as f32 - (v.y + 1.0) * 0.5 * (self.viewport.h as f32 - 1.0)
-                    + self.viewport.y as f32,
-            )
-        });
+            // 3. project transform
+            for v in &mut vertices {
+                v.position = *self.camera.get_frustum().get_mat() * v.position;
+            }
 
-        // 4. split triangle into trapeziods
-        let [trap1, trap2] = &mut Trapezoid::from_triangle(&vertices);
+            // save truely z into v.position.z
+            for v in &mut vertices {
+                v.position.z = -v.position.w * self.camera.get_frustum().near();
+            }
 
-        // 6. rasterization trapeziods
-        if let Some(trap) = trap1 {
-            self.draw_trapezoid(trap, color);
-        }
-        if let Some(trap) = trap2 {
-            self.draw_trapezoid(trap, color);
-        }
+            // perspective divide
+            for v in &mut vertices {
+                v.position.x /= v.position.w;
+                v.position.y /= v.position.w;
+                v.position.w = 1.0;
+            }
 
-        for i in 0..vertices.len() {
-            let p1 = &vertices[i];
-            let p2 = &vertices[(i + 1) % vertices.len()];
+            // 4. Viewport transform
+            for v in &mut vertices {
+                v.position.x = (v.position.x + 1.0) * 0.5 * (self.viewport.w as f32 - 1.0)
+                    + self.viewport.x as f32;
+                v.position.y = self.viewport.h as f32
+                    - (v.position.y + 1.0) * 0.5 * (self.viewport.h as f32 - 1.0)
+                    + self.viewport.y as f32;
+            }
 
-            renderer::bresenham::draw_line(&mut self.color_attachment, p1, p2, color);
+            // 5. split triangle into trapeziods
+            let [trap1, trap2] = &mut Trapezoid::from_triangle(&vertices);
+
+            // 6. rasterization trapeziods
+            if let Some(trap) = trap1 {
+                self.draw_trapezoid(trap, texture);
+            }
+            if let Some(trap) = trap2 {
+                self.draw_trapezoid(trap, texture);
+            }
         }
     }
 }
@@ -76,32 +96,54 @@ impl Renderer {
         }
     }
 
-    fn draw_trapezoid(&mut self, trap: &Trapezoid, color: &math::Vec4) {
+    fn draw_trapezoid(&mut self, trap: &mut Trapezoid, texture: Option<&image::DynamicImage>) {
         let top = (trap.top.ceil().max(0.0)) as i32;
         let bottom =
             (trap.bottom.ceil()).min(self.color_attachment.height() as f32 - 1.0) as i32 - 1;
         let mut y = top as f32;
 
+        vertex::vertex_rhw_init(&mut trap.left.v1);
+        vertex::vertex_rhw_init(&mut trap.left.v2);
+        vertex::vertex_rhw_init(&mut trap.right.v1);
+        vertex::vertex_rhw_init(&mut trap.right.v2);
+
         while y <= bottom as f32 {
             let mut scanline = Scanline::from_trapezoid(&trap, y);
-            self.draw_scanline(&mut scanline, color);
+            self.draw_scanline(&mut scanline, texture);
             y += 1.0;
         }
     }
 
-    fn draw_scanline(&mut self, scanline: &mut Scanline, color: &math::Vec4) {
+    fn draw_scanline(&mut self, scanline: &mut Scanline, texture: Option<&image::DynamicImage>) {
         let vertex = &mut scanline.vertex;
         let y = scanline.y as u32;
         while scanline.width > 0.0 {
-            let x = vertex.x;
+            let rhw = vertex.position.z;
+
+            let x = vertex.position.x;
 
             if x >= 0.0 && x < self.color_attachment.width() as f32 {
-                let x = x as u32;
-                self.color_attachment.set(x, y, &color)
+                let mut attr = vertex.attributes;
+                vertex::attributes_foreach(&mut attr, |value| value / rhw);
+
+                let texcoord = attr.vec2[ATTR_TEXCOORD];
+
+                let color = attr.vec4[ATTR_COLOR]
+                    * match texture {
+                        Some(texture) => texture_sample(texture, &texcoord),
+                        None => math::Vec4::new(1.0, 1.0, 1.0, 1.0),
+                    };
+                self.color_attachment.set(x as u32, y, &color);
             }
 
             scanline.width -= 1.0;
-            *vertex += scanline.step;
+            vertex.position += scanline.step.position;
+            vertex.attributes = vertex::interp_attributes(
+                &vertex.attributes,
+                &scanline.step.attributes,
+                |value1, value2, _| value1 + value2,
+                0.0,
+            );
         }
     }
 }
