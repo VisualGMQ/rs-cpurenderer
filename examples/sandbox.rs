@@ -22,12 +22,12 @@ fn swap_context(renderer: &mut Box<dyn RendererInterface>) {
 }
 
 pub fn create_renderer(w: u32, h: u32, camera: camera::Camera) -> Box<dyn RendererInterface> {
-    if cfg!(feature = "gpu") {
-        println!("use gpu renderer");
-        Box::new(gpu_renderer::Renderer::new(w, h, camera))
-    } else {
+    if cfg!(feature = "cpu") {
         println!("use cpu renderer");
         Box::new(cpu_renderer::Renderer::new(w, h, camera))
+    } else {
+        println!("use gpu renderer");
+        Box::new(gpu_renderer::Renderer::new(w, h, camera))
     }
 }
 
@@ -76,7 +76,6 @@ fn main() {
             Vertex::new(math::Vec3::new(-1.0, 1.0, 0.0), attr1),
             Vertex::new(math::Vec3::new(1.0, 1.0, 0.0), attr2),
             Vertex::new(math::Vec3::new(-1.0, -1.0, 0.0), attr3),
-
             Vertex::new(math::Vec3::new(1.0, 1.0, 0.0), attr2),
             Vertex::new(math::Vec3::new(-1.0, -1.0, 0.0), attr3),
             Vertex::new(math::Vec3::new(1.0, -1.0, 0.0), attr4),

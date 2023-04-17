@@ -1,4 +1,10 @@
-use crate::{camera, image::ColorAttachment, math, renderer::*, vertex::Vertex};
+use crate::{
+    camera,
+    image::ColorAttachment,
+    math::{self, Berycentric},
+    renderer::*,
+    vertex::*,
+};
 
 pub struct Renderer {
     color_attachment: ColorAttachment,
@@ -35,9 +41,25 @@ impl RendererInterface for Renderer {
             let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
             // 2. MVP transform
+            // MV transform
             for v in &mut vertices {
-                v.position = *self.camera.get_frustum().get_mat() * *model * v.position;
-                v.position /= v.position.w;
+                v.position = *model * v.position;
+            }
+
+            // project transform
+            for v in &mut vertices {
+                v.position = *self.camera.get_frustum().get_mat() * v.position;
+            }
+
+            // set truely z
+            for v in &mut vertices {
+                v.position.z = -v.position.w;
+            }
+
+            // perspective divide
+            for v in &mut vertices {
+                v.position.x /= v.position.w;
+                v.position.y /= v.position.w;
             }
 
             // 3. Viewport transform
@@ -105,19 +127,16 @@ impl RendererInterface for Renderer {
                         &vertices.map(|v| math::Vec2::new(v.position.x, v.position.y)),
                     );
                     if berycentric.is_valid() {
-                        // 6. attributes interpolation
-                        let mut color = vertices[0].attributes.vec4[ATTR_COLOR]
-                            * berycentric.alpha()
-                            + vertices[1].attributes.vec4[ATTR_COLOR] * berycentric.beta()
-                            + vertices[2].attributes.vec4[ATTR_COLOR] * berycentric.gamma();
+                        // 6. attributes interpolation and perspective correct
+                        let inv_z = berycentric.alpha() / vertices[0].position.z
+                            + berycentric.beta() / vertices[1].position.z
+                            + berycentric.gamma() / vertices[2].position.z;
+                        let z = 1.0 / inv_z;
+                        let attr = get_corrected_attribute(z, &vertices, &berycentric);
+                        let mut color = attr.vec4[ATTR_COLOR];
                         match texture {
                             Some(texture) => {
-                                let texcoord = vertices[0].attributes.vec2[ATTR_TEXCOORD]
-                                    * berycentric.alpha()
-                                    + vertices[1].attributes.vec2[ATTR_TEXCOORD]
-                                        * berycentric.beta()
-                                    + vertices[2].attributes.vec2[ATTR_TEXCOORD]
-                                        * berycentric.gamma();
+                                let texcoord = attr.vec2[ATTR_TEXCOORD];
                                 color *= texture_sample(texture, &texcoord);
                             }
                             None => {}
@@ -128,6 +147,26 @@ impl RendererInterface for Renderer {
             }
         }
     }
+}
+
+#[rustfmt::skip]
+fn get_corrected_attribute(z: f32, vertices: &[Vertex; 3], berycentric: &Berycentric) -> Attributes {
+    let mut attr = Attributes::default();
+    for i in 0..attr.float.len() {
+        attr.float[i] = (vertices[0].attributes.float[i] * berycentric.alpha() / vertices[0].position.z +
+                         vertices[1].attributes.float[i] * berycentric.beta() / vertices[1].position.z +
+                         vertices[2].attributes.float[i] * berycentric.gamma() / vertices[2].position.z) * z;
+        attr.vec2[i] = (vertices[0].attributes.vec2[i] * berycentric.alpha() / vertices[0].position.z +
+                        vertices[1].attributes.vec2[i] * berycentric.beta() / vertices[1].position.z +
+                        vertices[2].attributes.vec2[i] * berycentric.gamma() / vertices[2].position.z) * z;
+        attr.vec3[i] = (vertices[0].attributes.vec3[i] * berycentric.alpha() / vertices[0].position.z +
+                        vertices[1].attributes.vec3[i] * berycentric.beta() / vertices[1].position.z +
+                        vertices[2].attributes.vec3[i] * berycentric.gamma() / vertices[2].position.z) * z;
+        attr.vec4[i] = (vertices[0].attributes.vec4[i] * berycentric.alpha() / vertices[0].position.z +
+                        vertices[1].attributes.vec4[i] * berycentric.beta() / vertices[1].position.z +
+                        vertices[2].attributes.vec4[i] * berycentric.gamma() / vertices[2].position.z) * z;
+    }
+    attr
 }
 
 impl Renderer {
