@@ -3,13 +3,15 @@ use crate::{
     image::ColorAttachment,
     math::{self, Berycentric},
     renderer::*,
-    vertex::*,
+    shader::*, texture::{TextureStorage, self},
 };
 
 pub struct Renderer {
     color_attachment: ColorAttachment,
     camera: camera::Camera,
     viewport: Viewport,
+    shader: Shader,
+    uniforms: Uniforms,
 }
 
 impl RendererInterface for Renderer {
@@ -34,13 +36,16 @@ impl RendererInterface for Renderer {
         model: &math::Mat4,
         vertices: &[Vertex],
         count: u32,
-        texture: Option<&image::DynamicImage>,
+        texture_storage: &TextureStorage
     ) {
         for i in 0..count as usize {
-            // 1. convert 3D coordination to Homogeneous coordinates
+            // convert 3D coordination to Homogeneous coordinates
             let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
-            // 2. MVP transform
+            for v in &mut vertices {
+                *v = self.shader.call_vertex_changing(&v, &self.uniforms, texture_storage);
+            }
+
             // MV transform
             for v in &mut vertices {
                 v.position = *model * v.position;
@@ -62,7 +67,7 @@ impl RendererInterface for Renderer {
                 v.position.y /= v.position.w;
             }
 
-            // 3. Viewport transform
+            // Viewport transform
             for v in &mut vertices {
                 v.position.x = (v.position.x + 1.0) * 0.5 * (self.viewport.w as f32 - 1.0)
                     + self.viewport.x as f32;
@@ -71,7 +76,7 @@ impl RendererInterface for Renderer {
                     + self.viewport.y as f32;
             }
 
-            // 4. find AABB for triangle
+            // find AABB for triangle
             let aabb_min_x = vertices
                 .iter()
                 .fold(std::f32::MAX, |min, v| {
@@ -119,7 +124,7 @@ impl RendererInterface for Renderer {
             let aabb_min = math::Vec2::new(aabb_min_x, aabb_min_y);
             let aabb_max = math::Vec2::new(aabb_max_x, aabb_max_y);
 
-            // 5. walk through all pixel in AABB and set color
+            // walk through all pixel in AABB and set color
             for x in aabb_min.x as u32..=aabb_max.x as u32 {
                 for y in aabb_min.y as u32..=aabb_max.y as u32 {
                     let berycentric = math::Berycentric::new(
@@ -127,25 +132,27 @@ impl RendererInterface for Renderer {
                         &vertices.map(|v| math::Vec2::new(v.position.x, v.position.y)),
                     );
                     if berycentric.is_valid() {
-                        // 6. attributes interpolation and perspective correct
+                        // attributes interpolation and perspective correct
                         let inv_z = berycentric.alpha() / vertices[0].position.z
                             + berycentric.beta() / vertices[1].position.z
                             + berycentric.gamma() / vertices[2].position.z;
                         let z = 1.0 / inv_z;
                         let attr = get_corrected_attribute(z, &vertices, &berycentric);
-                        let mut color = attr.vec4[ATTR_COLOR];
-                        match texture {
-                            Some(texture) => {
-                                let texcoord = attr.vec2[ATTR_TEXCOORD];
-                                color *= texture_sample(texture, &texcoord);
-                            }
-                            None => {}
-                        }
+                        //  call pixel shading function to get pixel color
+                        let color = self.shader.call_pixel_shading(&attr, &self.uniforms, texture_storage);
                         self.color_attachment.set(x, y, &color);
                     }
                 }
             }
         }
+    }
+
+    fn get_shader(&mut self) -> &mut Shader {
+        &mut self.shader
+    }
+
+    fn get_uniforms(&mut self) -> &mut Uniforms {
+        &mut self.uniforms
     }
 }
 
@@ -175,6 +182,8 @@ impl Renderer {
             color_attachment: ColorAttachment::new(w, h),
             camera,
             viewport: Viewport { x: 0, y: 0, w, h },
+            shader: Default::default(),
+            uniforms: Default::default(),
         }
     }
 }

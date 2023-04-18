@@ -1,4 +1,6 @@
-use crate::math;
+use std::collections::HashMap;
+
+use crate::{math, texture::{TextureStorage, Texture}};
 
 const MAX_ATTRIBUTES_NUM: usize = 4;
 
@@ -132,6 +134,41 @@ where
     }
 }
 
+pub struct Uniforms {
+    pub int: HashMap<u32, i32>,
+    pub float: HashMap<u32, f32>,
+    pub vec2: HashMap<u32, math::Vec2>,
+    pub vec3: HashMap<u32, math::Vec3>,
+    pub vec4: HashMap<u32, math::Vec4>,
+    pub mat4: HashMap<u32, math::Mat4>,
+    pub texture: HashMap<u32, u32>,
+}
+
+impl Uniforms {
+    pub fn clear(&mut self) {
+        self.int.clear();
+        self.float.clear();
+        self.vec2.clear();
+        self.vec3.clear();
+        self.vec4.clear();
+        self.mat4.clear();
+    }
+}
+
+impl Default for Uniforms {
+    fn default() -> Self {
+        Self {
+            int: HashMap::default(),
+            float: HashMap::default(),
+            vec2: HashMap::default(),
+            vec3: HashMap::default(),
+            vec4: HashMap::default(),
+            mat4: HashMap::default(),
+            texture: HashMap::default(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     pub position: math::Vec4,
@@ -143,6 +180,36 @@ impl Vertex {
         Self {
             position: math::Vec4::from_vec3(&position, 1.0),
             attributes,
+        }
+    }
+}
+
+pub type VertexChanging = Box<dyn Fn(&Vertex, &Uniforms, &TextureStorage) -> Vertex>;
+pub type PixelShading = Box<dyn Fn(&Attributes, &Uniforms, &TextureStorage) -> math::Vec4>;
+
+pub struct Shader {
+    pub vertex_changing: VertexChanging,
+    pub pixel_shading: PixelShading,
+
+    pub uniforms: Uniforms,
+}
+
+impl Shader {
+    pub fn call_vertex_changing(&self, vertex: &Vertex, uniforms: &Uniforms, texture_storage: &TextureStorage) -> Vertex {
+        (self.vertex_changing)(vertex, uniforms, texture_storage)
+    }
+
+    pub fn call_pixel_shading(&self, attribute: &Attributes, uniforms: &Uniforms, texture_storage: &TextureStorage) -> math::Vec4 {
+        (self.pixel_shading)(attribute, uniforms, texture_storage)
+    }
+}
+
+impl Default for Shader {
+    fn default() -> Self {
+        Self {
+            vertex_changing: Box::new(|vertex, _, _| *vertex),
+            pixel_shading: Box::new(|_, _, _| math::Vec4::new(0.0, 0.0, 0.0, 1.0)),
+            uniforms: Default::default(),
         }
     }
 }

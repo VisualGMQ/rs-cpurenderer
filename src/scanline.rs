@@ -1,4 +1,4 @@
-use crate::vertex::*;
+use crate::shader::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Edge {
