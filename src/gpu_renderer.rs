@@ -14,6 +14,8 @@ pub struct Renderer {
     viewport: Viewport,
     shader: Shader,
     uniforms: Uniforms,
+    front_face: FrontFace,
+    cull: FaceCull,
 }
 
 impl RendererInterface for Renderer {
@@ -53,6 +55,21 @@ impl RendererInterface for Renderer {
             // MV transform
             for v in &mut vertices {
                 v.position = *model * v.position;
+            }
+
+            // Face Cull
+            if should_cull(
+                &vertices.map(|v| v.position.truncated_to_vec3()),
+                self.camera.view_dir(),
+                self.front_face,
+                self.cull,
+            ) {
+                continue;
+            }
+
+            // MV transform
+            for v in &mut vertices {
+                v.position = *self.camera.view_mat() * v.position;
             }
 
             // project transform
@@ -175,6 +192,30 @@ impl RendererInterface for Renderer {
     fn clear_depth(&mut self) {
         self.depth_attachment.clear(f32::MIN);
     }
+
+    fn get_camera(&mut self) -> &mut camera::Camera {
+        &mut self.camera
+    }
+
+    fn set_camera(&mut self, camera: camera::Camera) {
+        self.camera = camera;
+    }
+
+    fn set_front_face(&mut self, front_face: FrontFace) {
+        self.front_face = front_face;
+    }
+
+    fn get_front_face(&self) -> FrontFace {
+        self.front_face
+    }
+
+    fn set_face_cull(&mut self, cull: FaceCull) {
+        self.cull = cull;
+    }
+
+    fn get_face_cull(&self) -> FaceCull {
+        self.cull
+    }
 }
 
 #[rustfmt::skip]
@@ -206,6 +247,8 @@ impl Renderer {
             viewport: Viewport { x: 0, y: 0, w, h },
             shader: Default::default(),
             uniforms: Default::default(),
+            front_face: FrontFace::CCW,
+            cull: FaceCull::None,
         }
     }
 }

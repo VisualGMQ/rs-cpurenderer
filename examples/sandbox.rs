@@ -1,5 +1,5 @@
-use fltk::app::set_visual;
-use fltk::enums::Mode;
+use fltk::app::{event_key_down, set_visual};
+use fltk::enums::{Key, Mode};
 use fltk::{prelude::*, window::Window};
 use rs_cpurenderer::model::{self, Mesh};
 use rs_cpurenderer::renderer::texture_sample;
@@ -77,12 +77,14 @@ fn main() {
         WINDOW_HEIGHT as i32,
         "sandbox",
     );
-    let camera = camera::Camera::new(
+    let mut camera = camera::Camera::new(
         1.0,
         1000.0,
         WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32,
         30f32.to_radians(),
     );
+    camera.move_to(math::Vec3::new(0.0, 0.5, 0.0));
+    camera.set_rotation(math::Vec3::new(1f32.to_radians(), 0.0, 0.0));
 
     // init renderer and texture storage
     let mut renderer = create_renderer(WINDOW_WIDTH, WINDOW_HEIGHT, camera);
@@ -129,6 +131,30 @@ fn main() {
     let mut rotation = 0.0f32;
 
     wind.draw(move |_| {
+        // event handle
+        {
+            let camera = renderer.get_camera();
+            if event_key_down(Key::from_char('s')) {
+                camera.move_offset(math::Vec3::new(0.0, 0.0, 0.01));
+            }
+            if event_key_down(Key::from_char('w')) {
+                camera.move_offset(math::Vec3::new(0.0, 0.0, -0.01));
+            }
+            if event_key_down(Key::from_char('a')) {
+                camera.move_offset(math::Vec3::new(-0.01, 0.0, 0.0));
+            }
+            if event_key_down(Key::from_char('d')) {
+                camera.move_offset(math::Vec3::new(0.01, 0.0, 0.0));
+            }
+            if event_key_down(Key::from_char('q')) {
+                camera.move_offset(math::Vec3::new(0.0, 0.01, 0.0));
+            }
+            if event_key_down(Key::from_char('e')) {
+                camera.move_offset(math::Vec3::new(0.0, -0.01, 0.0));
+            }
+        }
+
+        // render
         renderer.clear(&math::Vec4::new(0.2, 0.2, 0.2, 1.0));
         renderer.clear_depth();
 
@@ -168,8 +194,6 @@ fn main() {
 
         swap_context(&mut renderer);
     });
-
-    wind.handle(move |_, _| false);
 
     wind.end();
     set_visual(Mode::Rgb).unwrap();

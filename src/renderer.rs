@@ -1,3 +1,4 @@
+use crate::camera::Camera;
 use crate::image::*;
 use crate::math;
 use crate::shader::Uniforms;
@@ -10,6 +11,19 @@ pub struct Viewport {
     pub y: i32,
     pub w: u32,
     pub h: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FaceCull {
+    Front,
+    Back,
+    None,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FrontFace {
+    CW,
+    CCW,
 }
 
 pub trait RendererInterface {
@@ -27,12 +41,37 @@ pub trait RendererInterface {
     fn get_rendered_image(&self) -> &[u8];
     fn get_shader(&mut self) -> &mut Shader;
     fn get_uniforms(&mut self) -> &mut Uniforms;
+    fn get_camera(&mut self) -> &mut Camera;
+    fn set_camera(&mut self, camera: Camera);
+    fn set_front_face(&mut self, front_face: FrontFace);
+    fn get_front_face(&self) -> FrontFace;
+    fn set_face_cull(&mut self, cull: FaceCull);
+    fn get_face_cull(&self) -> FaceCull;
 }
 
 pub fn texture_sample(texture: &Texture, texcoord: &math::Vec2) -> math::Vec4 {
     let x = (texcoord.x * (texture.width() - 1) as f32) as u32;
     let y = (texcoord.y * ((texture.height() - 1) as f32)) as u32;
     texture.get(x, y)
+}
+
+pub(crate) fn should_cull(
+    positions: &[math::Vec3; 3],
+    view_dir: &math::Vec3,
+    face: FrontFace,
+    cull: FaceCull,
+) -> bool {
+    let norm = (positions[2] - positions[1]).cross(&(positions[1] - positions[0]));
+    let is_front_face = match face {
+        FrontFace::CW => norm.dot(view_dir) >= 0.0,
+        FrontFace::CCW => norm.dot(view_dir) < 0.0,
+    };
+
+    match cull {
+        FaceCull::Front => is_front_face,
+        FaceCull::Back => !is_front_face,
+        FaceCull::None => false,
+    }
 }
 
 /// [Cohen-Sutherland Algorithm](https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm)

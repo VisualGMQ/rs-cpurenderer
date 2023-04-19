@@ -20,6 +20,8 @@ cargo run --example sandbox
 
 运行。
 
+使用WSAD前后左右移动相机，使用Q上升相机，E下降相机。
+
 本工程由两种软渲染：纯粹为了在CPU上快速运行的CPU软渲染(`./src/cpu_renderer.rs`)，以及模拟GPU原理的GPU软渲染(`./src/gpu_renderer.rs`)。使用`features`可以指定运行某种：
 
 ```bash
