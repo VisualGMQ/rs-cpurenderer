@@ -5,7 +5,8 @@ use crate::{
     renderer::{self},
     scanline::Trapezoid,
     scanline::*,
-    shader::{self, Shader, Uniforms, Vertex}, texture::TextureStorage,
+    shader::{self, Shader, Uniforms, Vertex},
+    texture::TextureStorage,
 };
 
 pub struct Renderer {
@@ -46,7 +47,9 @@ impl renderer::RendererInterface for Renderer {
 
             // call vertex changing function to change vertex position and set attribtues
             for v in &mut vertices {
-                *v = self.shader.call_vertex_changing(&v, &self.uniforms, texture_storage);
+                *v = self
+                    .shader
+                    .call_vertex_changing(&v, &self.uniforms, texture_storage);
             }
 
             // MV transform
@@ -143,7 +146,9 @@ impl Renderer {
                 let mut attr = vertex.attributes;
                 shader::attributes_foreach(&mut attr, |value| value / rhw);
                 // call pixel shading function to get shading color
-                let color = self.shader.call_pixel_shading(&attr, &self.uniforms, texture_storage);
+                let color = self
+                    .shader
+                    .call_pixel_shading(&attr, &self.uniforms, texture_storage);
                 self.color_attachment.set(x as u32, y, &color);
             }
 

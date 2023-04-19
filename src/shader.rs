@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{math, texture::{TextureStorage, Texture}};
+use crate::{
+    math,
+    texture::{Texture, TextureStorage},
+};
 
 const MAX_ATTRIBUTES_NUM: usize = 4;
 
@@ -195,11 +198,21 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn call_vertex_changing(&self, vertex: &Vertex, uniforms: &Uniforms, texture_storage: &TextureStorage) -> Vertex {
+    pub fn call_vertex_changing(
+        &self,
+        vertex: &Vertex,
+        uniforms: &Uniforms,
+        texture_storage: &TextureStorage,
+    ) -> Vertex {
         (self.vertex_changing)(vertex, uniforms, texture_storage)
     }
 
-    pub fn call_pixel_shading(&self, attribute: &Attributes, uniforms: &Uniforms, texture_storage: &TextureStorage) -> math::Vec4 {
+    pub fn call_pixel_shading(
+        &self,
+        attribute: &Attributes,
+        uniforms: &Uniforms,
+        texture_storage: &TextureStorage,
+    ) -> math::Vec4 {
         (self.pixel_shading)(attribute, uniforms, texture_storage)
     }
 }

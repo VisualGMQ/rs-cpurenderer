@@ -3,7 +3,8 @@ use crate::{
     image::ColorAttachment,
     math::{self, Berycentric},
     renderer::*,
-    shader::*, texture::{TextureStorage, self},
+    shader::*,
+    texture::TextureStorage,
 };
 
 pub struct Renderer {
@@ -36,14 +37,16 @@ impl RendererInterface for Renderer {
         model: &math::Mat4,
         vertices: &[Vertex],
         count: u32,
-        texture_storage: &TextureStorage
+        texture_storage: &TextureStorage,
     ) {
         for i in 0..count as usize {
             // convert 3D coordination to Homogeneous coordinates
             let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
             for v in &mut vertices {
-                *v = self.shader.call_vertex_changing(&v, &self.uniforms, texture_storage);
+                *v = self
+                    .shader
+                    .call_vertex_changing(&v, &self.uniforms, texture_storage);
             }
 
             // MV transform
@@ -139,7 +142,9 @@ impl RendererInterface for Renderer {
                         let z = 1.0 / inv_z;
                         let attr = get_corrected_attribute(z, &vertices, &berycentric);
                         //  call pixel shading function to get pixel color
-                        let color = self.shader.call_pixel_shading(&attr, &self.uniforms, texture_storage);
+                        let color =
+                            self.shader
+                                .call_pixel_shading(&attr, &self.uniforms, texture_storage);
                         self.color_attachment.set(x, y, &color);
                     }
                 }

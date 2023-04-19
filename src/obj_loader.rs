@@ -104,7 +104,7 @@ impl Material {
 }
 
 pub struct Mtllib {
-    materials: HashMap<String, Material>,
+    pub materials: HashMap<String, Material>,
 }
 
 pub struct SceneData {

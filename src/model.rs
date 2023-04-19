@@ -1,5 +1,6 @@
 use crate::math;
 use crate::obj_loader;
+use crate::obj_loader::Mtllib;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
@@ -12,13 +13,17 @@ pub struct Vertex {
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub name: Option<String>,
+    pub mtllib: Option<u32>,
+    pub material: Option<String>,
 }
 
-impl Mesh {
-    fn new() -> Self {
+impl Default for Mesh {
+    fn default() -> Self {
         Self {
             vertices: vec![],
             name: None,
+            mtllib: None,
+            material: None,
         }
     }
 }
@@ -32,13 +37,13 @@ pub enum PreOperation {
 pub fn load_from_file(
     filename: &str,
     pre_operation: PreOperation,
-) -> Result<Vec<Mesh>, obj_loader::Error> {
+) -> Result<(Vec<Mesh>, Vec<Mtllib>), obj_loader::Error> {
     let mut meshes = vec![];
 
     let scene = obj_loader::load_from_file(filename)?;
 
     for model in scene.models {
-        let mut mesh = Mesh::new();
+        let mut mesh = Mesh::default();
         mesh.name = Some(model.name.clone());
         for face in model.faces {
             for vtx in face.vertices {
@@ -60,6 +65,8 @@ pub fn load_from_file(
             }
         }
 
+        mesh.material = model.material;
+        mesh.mtllib = model.mtllib;
         meshes.push(mesh);
     }
 
@@ -81,5 +88,5 @@ pub fn load_from_file(
         }
     }
 
-    Ok(meshes)
+    Ok((meshes, scene.materials))
 }
