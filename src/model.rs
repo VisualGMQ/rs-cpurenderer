@@ -10,22 +10,12 @@ pub struct Vertex {
     pub color: math::Vec4,
 }
 
+#[derive(Default)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub name: Option<String>,
     pub mtllib: Option<u32>,
     pub material: Option<String>,
-}
-
-impl Default for Mesh {
-    fn default() -> Self {
-        Self {
-            vertices: vec![],
-            name: None,
-            mtllib: None,
-            material: None,
-        }
-    }
 }
 
 #[derive(PartialEq, Clone, Copy)]

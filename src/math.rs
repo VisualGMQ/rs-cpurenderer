@@ -512,7 +512,7 @@ impl Mat4 {
 }
 
 pub fn reflect(v: &Vec3, normal: &Vec3) -> Vec3 {
-    2.0 * (v.dot(&normal)) * *normal - *v
+    2.0 * (v.dot(normal)) * *normal - *v
 }
 
 // Quaternion

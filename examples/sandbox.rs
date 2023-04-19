@@ -114,10 +114,10 @@ fn main() {
 
     // pixel shading shader(as fragment shader in OpenGL)
     renderer.get_shader().pixel_shading = Box::new(|attr, uniforms, texture_storage| {
-        let mut frag_color = match uniforms.vec4.get(&UNIFORM_COLOR) {
-            Some(color) => *color,
-            None => math::Vec4::new(1.0, 1.0, 1.0, 1.0),
-        };
+        let mut frag_color = *uniforms
+            .vec4
+            .get(&UNIFORM_COLOR)
+            .unwrap_or(&math::Vec4::new(1.0, 1.0, 1.0, 1.0));
         let texcoord = attr.vec2[ATTR_TEXCOORD];
         if let Some(texture_id) = uniforms.texture.get(&UNIFORM_TEXTURE) {
             if let Some(texture) = texture_storage.get_by_id(*texture_id) {

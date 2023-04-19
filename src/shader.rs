@@ -134,6 +134,7 @@ where
     }
 }
 
+#[derive(Default)]
 pub struct Uniforms {
     pub int: HashMap<u32, i32>,
     pub float: HashMap<u32, f32>,
@@ -152,20 +153,6 @@ impl Uniforms {
         self.vec3.clear();
         self.vec4.clear();
         self.mat4.clear();
-    }
-}
-
-impl Default for Uniforms {
-    fn default() -> Self {
-        Self {
-            int: HashMap::default(),
-            float: HashMap::default(),
-            vec2: HashMap::default(),
-            vec3: HashMap::default(),
-            vec4: HashMap::default(),
-            mat4: HashMap::default(),
-            texture: HashMap::default(),
-        }
     }
 }
 

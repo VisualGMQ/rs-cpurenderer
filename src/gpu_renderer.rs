@@ -49,7 +49,7 @@ impl RendererInterface for Renderer {
             for v in &mut vertices {
                 *v = self
                     .shader
-                    .call_vertex_changing(&v, &self.uniforms, texture_storage);
+                    .call_vertex_changing(v, &self.uniforms, texture_storage);
             }
 
             // MV transform

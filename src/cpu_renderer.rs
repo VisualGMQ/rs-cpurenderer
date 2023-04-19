@@ -52,7 +52,7 @@ impl renderer::RendererInterface for Renderer {
             for v in &mut vertices {
                 *v = self
                     .shader
-                    .call_vertex_changing(&v, &self.uniforms, texture_storage);
+                    .call_vertex_changing(v, &self.uniforms, texture_storage);
             }
 
             // Model transform
@@ -177,7 +177,7 @@ impl Renderer {
         shader::vertex_rhw_init(&mut trap.right.v2);
 
         while y <= bottom as f32 {
-            let mut scanline = Scanline::from_trapezoid(&trap, y);
+            let mut scanline = Scanline::from_trapezoid(trap, y);
             self.draw_scanline(&mut scanline, texture_storage);
             y += 1.0;
         }
