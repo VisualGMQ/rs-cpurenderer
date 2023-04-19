@@ -1,5 +1,3 @@
-use image::GenericImageView;
-
 use crate::image::*;
 use crate::math;
 use crate::shader::Uniforms;
@@ -16,6 +14,7 @@ pub struct Viewport {
 
 pub trait RendererInterface {
     fn clear(&mut self, color: &math::Vec4);
+    fn clear_depth(&mut self);
     fn get_canva_width(&self) -> u32;
     fn get_canva_height(&self) -> u32;
     fn draw_triangle(

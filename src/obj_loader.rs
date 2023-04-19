@@ -61,6 +61,7 @@ pub struct MtlTextureMaps {
     pub specular_highlight: Option<String>, // map_Ns
     pub alpha: Option<String>,              // map_d
     pub refl: Option<String>,               // map_refl
+    pub bump: Option<String>,               // map_Bump
 }
 
 pub struct Material {
@@ -98,6 +99,7 @@ impl Material {
                 specular_highlight: None,
                 alpha: None,
                 refl: None,
+                bump: None,
             },
         }
     }
@@ -495,6 +497,10 @@ impl<'a> MtllibParser<'a> {
                     ],
                     "map_refl" => parse_material_field![
                         mtl.texture_maps.refl =
+                            Some(parse_as![token = self.token_requester.request(); String]?)
+                    ],
+                    "map_Bump" => parse_material_field![
+                        mtl.texture_maps.bump =
                             Some(parse_as![token = self.token_requester.request(); String]?)
                     ],
                     _ => return Err(Error::UnknownToken(token_str.to_string())),

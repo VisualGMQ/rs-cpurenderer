@@ -1,6 +1,6 @@
 use crate::{
     camera,
-    image::ColorAttachment,
+    image::{ColorAttachment, DepthAttachment},
     math,
     renderer::{self},
     scanline::Trapezoid,
@@ -11,6 +11,7 @@ use crate::{
 
 pub struct Renderer {
     color_attachment: ColorAttachment,
+    depth_attachment: DepthAttachment,
     camera: camera::Camera,
     viewport: renderer::Viewport,
     shader: Shader,
@@ -103,12 +104,17 @@ impl renderer::RendererInterface for Renderer {
     fn get_uniforms(&mut self) -> &mut Uniforms {
         &mut self.uniforms
     }
+
+    fn clear_depth(&mut self) {
+        self.depth_attachment.clear(f32::MIN);
+    }
 }
 
 impl Renderer {
     pub fn new(w: u32, h: u32, camera: camera::Camera) -> Self {
         Self {
             color_attachment: ColorAttachment::new(w, h),
+            depth_attachment: DepthAttachment::new(w, h),
             camera,
             viewport: renderer::Viewport { x: 0, y: 0, w, h },
             shader: Default::default(),
@@ -139,17 +145,22 @@ impl Renderer {
         let y = scanline.y as u32;
         while scanline.width > 0.0 {
             let rhw = vertex.position.z;
+            let z = 1.0 / rhw;
 
             let x = vertex.position.x;
 
             if x >= 0.0 && x < self.color_attachment.width() as f32 {
-                let mut attr = vertex.attributes;
-                shader::attributes_foreach(&mut attr, |value| value / rhw);
-                // call pixel shading function to get shading color
-                let color = self
-                    .shader
-                    .call_pixel_shading(&attr, &self.uniforms, texture_storage);
-                self.color_attachment.set(x as u32, y, &color);
+                let x = x as u32;
+                if self.depth_attachment.get(x, y) <= z {
+                    let mut attr = vertex.attributes;
+                    shader::attributes_foreach(&mut attr, |value| value / rhw);
+                    // call pixel shading function to get shading color
+                    let color =
+                        self.shader
+                            .call_pixel_shading(&attr, &self.uniforms, texture_storage);
+                    self.color_attachment.set(x, y, &color);
+                    self.depth_attachment.set(x, y, z);
+                }
             }
 
             scanline.width -= 1.0;

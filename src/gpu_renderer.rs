@@ -1,6 +1,6 @@
 use crate::{
     camera,
-    image::ColorAttachment,
+    image::{ColorAttachment, DepthAttachment},
     math::{self, Berycentric},
     renderer::*,
     shader::*,
@@ -9,6 +9,7 @@ use crate::{
 
 pub struct Renderer {
     color_attachment: ColorAttachment,
+    depth_attachment: DepthAttachment,
     camera: camera::Camera,
     viewport: Viewport,
     shader: Shader,
@@ -60,6 +61,12 @@ impl RendererInterface for Renderer {
             }
 
             // set truely z
+            /* NOTIC: in OpenGL, after MVP transform, z in [-1, 1], then OpenGL do `z = (z + 1) / 2` to make z in [0, 1],
+                then, use `1 / z` to test depth.
+                But here we replace transformed z to it's original z which transformed after MV.
+                Traditionally we will save `-1.0 / v.position.w` into v.rhw and use it interpolate attributes.
+                But here I don't do it(because I'm lazy :D, maybe do it later).
+            */
             for v in &mut vertices {
                 v.position.z = -v.position.w;
             }
@@ -140,12 +147,17 @@ impl RendererInterface for Renderer {
                             + berycentric.beta() / vertices[1].position.z
                             + berycentric.gamma() / vertices[2].position.z;
                         let z = 1.0 / inv_z;
-                        let attr = get_corrected_attribute(z, &vertices, &berycentric);
-                        //  call pixel shading function to get pixel color
-                        let color =
-                            self.shader
-                                .call_pixel_shading(&attr, &self.uniforms, texture_storage);
-                        self.color_attachment.set(x, y, &color);
+                        if self.depth_attachment.get(x, y) <= z {
+                            let attr = get_corrected_attribute(z, &vertices, &berycentric);
+                            //  call pixel shading function to get pixel color
+                            let color = self.shader.call_pixel_shading(
+                                &attr,
+                                &self.uniforms,
+                                texture_storage,
+                            );
+                            self.color_attachment.set(x, y, &color);
+                            self.depth_attachment.set(x, y, z);
+                        }
                     }
                 }
             }
@@ -158,6 +170,10 @@ impl RendererInterface for Renderer {
 
     fn get_uniforms(&mut self) -> &mut Uniforms {
         &mut self.uniforms
+    }
+
+    fn clear_depth(&mut self) {
+        self.depth_attachment.clear(f32::MIN);
     }
 }
 
@@ -185,6 +201,7 @@ impl Renderer {
     pub fn new(w: u32, h: u32, camera: camera::Camera) -> Self {
         Self {
             color_attachment: ColorAttachment::new(w, h),
+            depth_attachment: DepthAttachment::new(w, h),
             camera,
             viewport: Viewport { x: 0, y: 0, w, h },
             shader: Default::default(),

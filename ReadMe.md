@@ -6,6 +6,29 @@ A cpu 3D renderer based on pure rust.
 
 之前写了一份完整的，源码放在Release下了。这个是重置版本。重置完之后会删掉Release版本。
 
+## 目前的显示
+
+![snapshot](./snapshot/snapshot.gif)
+
+## 工程运行
+
+只有一个例子：`examples/sandbox.rs`，用
+
+```bash
+cargo run --example sandbox
+```
+
+运行。
+
+本工程由两种软渲染：纯粹为了在CPU上快速运行的CPU软渲染(`./src/cpu_renderer.rs`)，以及模拟GPU原理的GPU软渲染(`./src/gpu_renderer.rs`)。使用`features`可以指定运行某种：
+
+```bash
+cargo run --example sandbox --features cpu
+cargo run --example sandbox --features gpu
+```
+
+默认是CPU渲染。
+
 ## 参考
 
 书籍：

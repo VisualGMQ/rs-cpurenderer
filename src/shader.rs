@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    math,
-    texture::{Texture, TextureStorage},
-};
+use crate::{math, texture::TextureStorage};
 
 const MAX_ATTRIBUTES_NUM: usize = 4;
 

@@ -16,7 +16,7 @@ const ATTR_NORMAL: usize = 0; // vec3
 
 // uniform location
 const UNIFORM_TEXTURE: u32 = 0; // vec2
-const UNIFORM_COLOR: u32 = 1;   // vec4
+const UNIFORM_COLOR: u32 = 1; // vec4
 
 fn swap_context(renderer: &mut Box<dyn RendererInterface>) {
     let result = renderer.get_rendered_image();
@@ -89,9 +89,9 @@ fn main() {
     let mut texture_storage = TextureStorage::default();
 
     // data prepare, from OBJ model
-    const MODEL_ROOT_DIR: &str = "./resources/plane";
+    const MODEL_ROOT_DIR: &str = "./resources/sonic";
     let (meshes, mtllibs) = model::load_from_file(
-        &format!("{}/{}", MODEL_ROOT_DIR, "/plane.obj"),
+        &format!("{}/{}", MODEL_ROOT_DIR, "ClassicSonicBall.obj"),
         model::PreOperation::None,
     )
     .unwrap();
@@ -130,6 +130,7 @@ fn main() {
 
     wind.draw(move |_| {
         renderer.clear(&math::Vec4::new(0.2, 0.2, 0.2, 1.0));
+        renderer.clear_depth();
 
         let model = math::create_translate(&math::Vec3::new(0.0, 0.0, -4.0))
             * math::create_eular_rotate_y(rotation.to_radians());
