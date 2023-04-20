@@ -83,7 +83,7 @@ fn main() {
         WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32,
         30f32.to_radians(),
     );
-    camera.move_to(math::Vec3::new(0.0, 0.5, 0.0));
+    camera.move_to(math::Vec3::new(0.0, 1.0, 0.0));
     camera.set_rotation(math::Vec3::new(1f32.to_radians(), 0.0, 0.0));
 
     // init renderer and texture storage
@@ -94,9 +94,9 @@ fn main() {
     let mut texture_storage = TextureStorage::default();
 
     // data prepare, from OBJ model
-    const MODEL_ROOT_DIR: &str = "./resources/plane";
+    const MODEL_ROOT_DIR: &str = "./resources/Red";
     let (meshes, mtllibs) = model::load_from_file(
-        &format!("{}/{}", MODEL_ROOT_DIR, "plane.obj"),
+        &format!("{}/{}", MODEL_ROOT_DIR, "Red.obj"),
         model::PreOperation::None,
     )
     .unwrap();

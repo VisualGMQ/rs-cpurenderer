@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::math;
-use image::{self, GenericImageView};
+use image::{self, GenericImageView, ImageBuffer, Pixel, Rgba};
 
 pub struct Texture {
     image: image::DynamicImage,
@@ -11,8 +11,10 @@ pub struct Texture {
 
 impl Texture {
     fn load(filename: &str, id: u32, name: &str) -> image::ImageResult<Texture> {
+        let image = image::open(filename).expect(&format!("{} File not found!", filename)).flipv();
+
         Ok(Self {
-            image: image::open(filename)?,
+            image,
             id,
             name: name.to_string(),
         })
