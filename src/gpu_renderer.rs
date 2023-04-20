@@ -1,6 +1,7 @@
 use crate::{
     camera,
     image::{ColorAttachment, DepthAttachment},
+    line::Line,
     math::{self, Berycentric},
     renderer::*,
     shader::*,
@@ -16,6 +17,7 @@ pub struct Renderer {
     uniforms: Uniforms,
     front_face: FrontFace,
     cull: FaceCull,
+    enable_framework: bool,
 }
 
 impl RendererInterface for Renderer {
@@ -51,24 +53,19 @@ impl RendererInterface for Renderer {
                     .call_vertex_changing(v, &self.uniforms, texture_storage);
             }
 
-            // MV transform
+            // Model View transform
             for v in &mut vertices {
-                v.position = *model * v.position;
+                v.position = *self.camera.view_mat() * *model * v.position;
             }
 
             // Face Cull
             if should_cull(
                 &vertices.map(|v| v.position.truncated_to_vec3()),
-                self.camera.view_dir(),
+                &-*math::Vec3::y_axis(),
                 self.front_face,
                 self.cull,
             ) {
                 continue;
-            }
-
-            // MV transform
-            for v in &mut vertices {
-                v.position = *self.camera.view_mat() * v.position;
             }
 
             // project transform
@@ -150,32 +147,51 @@ impl RendererInterface for Renderer {
             let aabb_min = math::Vec2::new(aabb_min_x, aabb_min_y);
             let aabb_max = math::Vec2::new(aabb_max_x, aabb_max_y);
 
-            // walk through all pixel in AABB and set color
-            for x in aabb_min.x as u32..=aabb_max.x as u32 {
-                for y in aabb_min.y as u32..=aabb_max.y as u32 {
-                    let berycentric = math::Berycentric::new(
-                        &math::Vec2::new(x as f32, y as f32),
-                        &vertices.map(|v| math::Vec2::new(v.position.x, v.position.y)),
+            if self.enable_framework {
+                // draw line framework
+                for i in 0..3 {
+                    let mut v1 = vertices[i];
+                    let mut v2 = vertices[(i + 1) % 3];
+                    v1.position.z = 1.0 / v1.position.z;
+                    v2.position.z = 1.0 / v2.position.z;
+
+                    rasterize_line(
+                        &Line::new(v1, v2),
+                        &self.shader.pixel_shading,
+                        &self.uniforms,
+                        texture_storage,
+                        &mut self.color_attachment,
+                        &mut self.depth_attachment,
                     );
-                    if berycentric.is_valid() {
-                        // attributes interpolation and perspective correct
-                        let inv_z = berycentric.alpha() / vertices[0].position.z
-                            + berycentric.beta() / vertices[1].position.z
-                            + berycentric.gamma() / vertices[2].position.z;
-                        let z = 1.0 / inv_z;
-                        // depth test and near plane
-                        if z < self.camera.get_frustum().near()
-                            && self.depth_attachment.get(x, y) <= z
-                        {
-                            let attr = get_corrected_attribute(z, &vertices, &berycentric);
-                            //  call pixel shading function to get pixel color
-                            let color = self.shader.call_pixel_shading(
-                                &attr,
-                                &self.uniforms,
-                                texture_storage,
-                            );
-                            self.color_attachment.set(x, y, &color);
-                            self.depth_attachment.set(x, y, z);
+                }
+            } else {
+                // walk through all pixel in AABB and set color
+                for x in aabb_min.x as u32..=aabb_max.x as u32 {
+                    for y in aabb_min.y as u32..=aabb_max.y as u32 {
+                        let berycentric = math::Berycentric::new(
+                            &math::Vec2::new(x as f32, y as f32),
+                            &vertices.map(|v| math::Vec2::new(v.position.x, v.position.y)),
+                        );
+                        if berycentric.is_valid() {
+                            // attributes interpolation and perspective correct
+                            let inv_z = berycentric.alpha() / vertices[0].position.z
+                                + berycentric.beta() / vertices[1].position.z
+                                + berycentric.gamma() / vertices[2].position.z;
+                            let z = 1.0 / inv_z;
+                            // depth test and near plane
+                            if z < self.camera.get_frustum().near()
+                                && self.depth_attachment.get(x, y) <= z
+                            {
+                                let attr = get_corrected_attribute(z, &vertices, &berycentric);
+                                //  call pixel shading function to get pixel color
+                                let color = self.shader.call_pixel_shading(
+                                    &attr,
+                                    &self.uniforms,
+                                    texture_storage,
+                                );
+                                self.color_attachment.set(x, y, &color);
+                                self.depth_attachment.set(x, y, z);
+                            }
                         }
                     }
                 }
@@ -218,6 +234,14 @@ impl RendererInterface for Renderer {
     fn get_face_cull(&self) -> FaceCull {
         self.cull
     }
+
+    fn enable_framework(&mut self) {
+        self.enable_framework = true;
+    }
+
+    fn disable_framework(&mut self) {
+        self.enable_framework = false;
+    }
 }
 
 #[rustfmt::skip]
@@ -251,6 +275,7 @@ impl Renderer {
             uniforms: Default::default(),
             front_face: FrontFace::CCW,
             cull: FaceCull::None,
+            enable_framework: false,
         }
     }
 }

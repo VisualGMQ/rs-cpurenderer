@@ -1,6 +1,8 @@
 use crate::camera::Camera;
 use crate::image::*;
+use crate::line::Line;
 use crate::math;
+use crate::shader;
 use crate::shader::Uniforms;
 use crate::shader::{Shader, Vertex};
 use crate::texture::Texture;
@@ -46,6 +48,8 @@ pub trait RendererInterface {
     fn get_front_face(&self) -> FrontFace;
     fn set_face_cull(&mut self, cull: FaceCull);
     fn get_face_cull(&self) -> FaceCull;
+    fn enable_framework(&mut self);
+    fn disable_framework(&mut self);
 }
 
 pub fn texture_sample(texture: &Texture, texcoord: &math::Vec2) -> math::Vec4 {
@@ -60,16 +64,66 @@ pub(crate) fn should_cull(
     face: FrontFace,
     cull: FaceCull,
 ) -> bool {
-    let norm = (positions[2] - positions[1]).cross(&(positions[1] - positions[0]));
+    let norm = (positions[1] - positions[0]).cross(&(positions[2] - positions[1]));
     let is_front_face = match face {
-        FrontFace::CW => norm.dot(view_dir) >= 0.0,
-        FrontFace::CCW => norm.dot(view_dir) < 0.0,
+        FrontFace::CW => norm.dot(view_dir) > 0.0,
+        FrontFace::CCW => norm.dot(view_dir) <= 0.0,
     };
 
     match cull {
         FaceCull::Front => is_front_face,
         FaceCull::Back => !is_front_face,
         FaceCull::None => false,
+    }
+}
+
+pub(crate) fn rasterize_line(
+    line: &Line,
+    shading: &shader::PixelShading,
+    uniforms: &shader::Uniforms,
+    texture_storage: &TextureStorage,
+    color_attachment: &mut ColorAttachment,
+    depth_attachment: &mut DepthAttachment,
+) {
+    let mut bresenham = Bresenham::new(
+        &line.start.position.truncated_to_vec2(),
+        &line.end.position.truncated_to_vec2(),
+        &math::Vec2::zero(),
+        &math::Vec2::new(
+            color_attachment.width() as f32 - 1.0,
+            color_attachment.height() as f32 - 1.0,
+        ),
+    );
+
+    if let Some(iter) = &mut bresenham {
+        let mut position = iter.next();
+        let mut vertex = line.start;
+        while position.is_some() {
+            let (x, y) = position.unwrap();
+
+            let rhw = vertex.position.z;
+            let z = 1.0 / rhw;
+
+            let x = x as u32;
+            let y = y as u32;
+            if depth_attachment.get(x, y) <= z {
+                let mut attr = vertex.attributes;
+                shader::attributes_foreach(&mut attr, |value| value * z);
+                // call pixel shading function to get shading color
+                let color = shading(&vertex.attributes, uniforms, texture_storage);
+                color_attachment.set(x, y, &color);
+                depth_attachment.set(x, y, z);
+            }
+
+            vertex.position += line.step.position;
+            vertex.attributes = shader::interp_attributes(
+                &vertex.attributes,
+                &line.step.attributes,
+                |value1, value2, _| value1 + value2,
+                0.0,
+            );
+            position = iter.next();
+        }
     }
 }
 
@@ -152,77 +206,91 @@ mod cohen_sutherland {
 }
 
 /// [Bresenham Algorithm](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm#)
-pub mod bresenham {
-    use super::cohen_sutherland;
-    use super::math;
-    use super::ColorAttachment;
+pub(crate) struct Bresenham {
+    final_x: i32,
+    x: i32,
+    y: i32,
+    steep: i32,
+    step: i32,
+    e: i32,
+    sy: i32,
+    sx: i32,
+    desc: i32,
+}
 
-    pub fn draw_line(
-        texture: &mut ColorAttachment,
+impl Bresenham {
+    pub fn new(
         p1: &math::Vec2,
         p2: &math::Vec2,
-        color: &math::Vec4,
-    ) {
-        let clip_result = cohen_sutherland::cohen_sutherland_line_clip(
-            p1,
-            p2,
-            &math::Vec2::zero(),
-            &math::Vec2::new(texture.width() as f32 - 1.0, texture.height() as f32 - 1.0),
-        );
+        min: &math::Vec2,
+        max: &math::Vec2,
+    ) -> Option<Self> {
+        let clip_result = cohen_sutherland::cohen_sutherland_line_clip(p1, p2, min, max);
 
-        if let Some((p1, p2)) = clip_result {
-            draw_line_without_clip(
-                texture,
-                p1.x as i32,
-                p1.y as i32,
-                p2.x as i32,
-                p2.y as i32,
-                color,
-            );
+        if let Some((v1, v2)) = clip_result {
+            let x0 = v1.x as i32;
+            let y0 = v1.y as i32;
+            let x1 = v2.x as i32;
+            let y1 = v2.y as i32;
+
+            let mut dx = (x1 - x0).abs();
+            let mut dy = (y1 - y0).abs();
+            let mut sx = if x1 >= x0 { 1 } else { -1 };
+            let mut sy = if y1 >= y0 { 1 } else { -1 };
+            let mut x = x0;
+            let mut y = y0;
+            let steep = if dx < dy { 1 } else { -1 };
+
+            let final_x = if dx < dy { y1 } else { x1 };
+
+            if dx < dy {
+                std::mem::swap(&mut dx, &mut dy);
+                std::mem::swap(&mut x, &mut y);
+                std::mem::swap(&mut sx, &mut sy);
+            }
+
+            let e = -dx;
+            let step = 2 * dy;
+            let desc = -2 * dx;
+
+            Some(Bresenham {
+                final_x,
+                x,
+                y,
+                steep,
+                e,
+                sy,
+                sx,
+                desc,
+                step,
+            })
+        } else {
+            None
         }
     }
+}
 
-    fn draw_line_without_clip(
-        texture: &mut ColorAttachment,
-        x0: i32,
-        y0: i32,
-        x1: i32,
-        y1: i32,
-        color: &math::Vec4,
-    ) {
-        let mut dx = (x1 - x0).abs();
-        let mut dy = (y1 - y0).abs();
-        let mut sx = if x1 >= x0 { 1 } else { -1 };
-        let mut sy = if y1 >= y0 { 1 } else { -1 };
-        let mut x = x0;
-        let mut y = y0;
-        let steep = if dx < dy { 1 } else { -1 };
+impl Iterator for Bresenham {
+    type Item = (i32, i32);
 
-        let final_x = if dx < dy { y1 } else { x1 };
-
-        if dx < dy {
-            std::mem::swap(&mut dx, &mut dy);
-            std::mem::swap(&mut x, &mut y);
-            std::mem::swap(&mut sx, &mut sy);
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.x == self.final_x {
+            return None;
         }
 
-        let mut e = -dx;
-        let step = 2 * dy;
-        let desc = -2 * dx;
+        let result = if self.steep > 0 {
+            (self.y, self.x)
+        } else {
+            (self.x, self.y)
+        };
 
-        while x != final_x {
-            if steep > 0 {
-                texture.set(y as u32, x as u32, color);
-            } else {
-                texture.set(x as u32, y as u32, color);
-            }
-
-            e += step;
-            if e >= 0 {
-                y += sy;
-                e += desc;
-            }
-            x += sx;
+        self.e += self.step;
+        if self.e >= 0 {
+            self.y += self.sy;
+            self.e += self.desc;
         }
+        self.x += self.sx;
+
+        Some(result)
     }
 }

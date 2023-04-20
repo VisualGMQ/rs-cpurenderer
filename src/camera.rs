@@ -47,6 +47,24 @@ impl Frustum {
     pub fn near(&self) -> f32 {
         self.near
     }
+
+    ///! judge is pt in frustum
+    pub fn contain(&self, pt: &math::Vec3) -> bool {
+        let half_h = self.near * self.fovy.tan() / self.aspect;
+        let h_fovy_cos = self.fovy.cos();
+        let h_fovy_sin = self.fovy.sin();
+
+        /* Use plane formular `A(x-x0)+B(y-y0)+C(z-z0)=0` and here coordinate origin is on planes, so (x0, y0, z0) = (0, 0, 0), so use `Ax+By+Cz=0`.
+            The normal of plane `(A, B, C)` must point from the inside of frustum to outside.
+            Then put pt into formular and if result >= 0, pt is at out side of plane.
+        */
+        !(math::Vec3::new(h_fovy_cos, 0.0, h_fovy_sin).dot(pt) >= 0.0   // right plane
+            || math::Vec3::new(-h_fovy_cos, 0.0, h_fovy_sin).dot(pt) >= 0.0 // left plane
+            || math::Vec3::new(0.0, self.near, half_h).dot(pt) >= 0.0   // top plane
+            || math::Vec3::new(0.0, -self.near, half_h).dot(pt) >= 0.0  // bottom plane
+            || pt.z >= -self.near // near plane
+            || pt.z <= -self.far) // far plane
+    }
 }
 
 pub struct Camera {

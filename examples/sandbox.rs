@@ -2,7 +2,7 @@ use fltk::app::{event_key_down, set_visual};
 use fltk::enums::{Key, Mode};
 use fltk::{prelude::*, window::Window};
 use rs_cpurenderer::model::{self, Mesh};
-use rs_cpurenderer::renderer::texture_sample;
+use rs_cpurenderer::renderer::{texture_sample, FaceCull, FrontFace};
 use rs_cpurenderer::shader::{Attributes, Vertex};
 use rs_cpurenderer::texture::TextureStorage;
 use rs_cpurenderer::{camera, cpu_renderer, gpu_renderer, math, renderer::RendererInterface};
@@ -88,12 +88,15 @@ fn main() {
 
     // init renderer and texture storage
     let mut renderer = create_renderer(WINDOW_WIDTH, WINDOW_HEIGHT, camera);
+    renderer.set_front_face(FrontFace::CCW);
+    renderer.set_face_cull(FaceCull::Back);
+    renderer.enable_framework();
     let mut texture_storage = TextureStorage::default();
 
     // data prepare, from OBJ model
-    const MODEL_ROOT_DIR: &str = "./resources/sonic";
+    const MODEL_ROOT_DIR: &str = "./resources/plane";
     let (meshes, mtllibs) = model::load_from_file(
-        &format!("{}/{}", MODEL_ROOT_DIR, "ClassicSonicBall.obj"),
+        &format!("{}/{}", MODEL_ROOT_DIR, "plane.obj"),
         model::PreOperation::None,
     )
     .unwrap();
@@ -118,7 +121,9 @@ fn main() {
             .vec4
             .get(&UNIFORM_COLOR)
             .unwrap_or(&math::Vec4::new(1.0, 1.0, 1.0, 1.0));
-        let texcoord = attr.vec2[ATTR_TEXCOORD];
+        let mut texcoord = attr.vec2[ATTR_TEXCOORD];
+        texcoord.x = texcoord.x.clamp(0.0, 1.0);
+        texcoord.y = texcoord.y.clamp(0.0, 1.0);
         if let Some(texture_id) = uniforms.texture.get(&UNIFORM_TEXTURE) {
             if let Some(texture) = texture_storage.get_by_id(*texture_id) {
                 frag_color *= texture_sample(texture, &texcoord);
@@ -182,11 +187,7 @@ fn main() {
             }
 
             // draw mesh
-            renderer.draw_triangle(
-                &model,
-                &data.vertices,
-                &texture_storage,
-            );
+            renderer.draw_triangle(&model, &data.vertices, &texture_storage);
         }
 
         rotation += 1.0;

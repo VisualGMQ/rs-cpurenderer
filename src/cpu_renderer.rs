@@ -1,8 +1,9 @@
 use crate::{
     camera,
     image::{ColorAttachment, DepthAttachment},
+    line::Line,
     math,
-    renderer::{self, should_cull, FaceCull, FrontFace},
+    renderer::{self, rasterize_line, should_cull, FaceCull, FrontFace},
     scanline::Trapezoid,
     scanline::*,
     shader::{self, Shader, Uniforms, Vertex},
@@ -20,6 +21,13 @@ pub struct Renderer {
     cull: FaceCull,
 
     cliped_triangles: Vec<Vertex>,
+    enable_framework: bool,
+}
+
+enum RasterizeResult {
+    Ok,
+    Discard,
+    GenerateNewFace,
 }
 
 impl renderer::RendererInterface for Renderer {
@@ -45,82 +53,28 @@ impl renderer::RendererInterface for Renderer {
         vertices: &[Vertex],
         texture_storage: &TextureStorage,
     ) {
-        let count = if self.cliped_triangles.is_empty() {
-            vertices
-        } else {
-            &self.cliped_triangles
-        }
-        .len()
-            / 3;
-        for i in 0..count as usize {
+        for i in 0..vertices.len() / 3 as usize {
             // convert 3D coordination to Homogeneous coordinates
-            let mut vertices = {
-                let vertices = if self.cliped_triangles.is_empty() {
-                    vertices
-                } else {
-                    &self.cliped_triangles
-                };
+            let vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
-                [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]]
-            };
-
-            // call vertex changing function to change vertex position and set attribtues
-            for v in &mut vertices {
-                *v = self
-                    .shader
-                    .call_vertex_changing(v, &self.uniforms, texture_storage);
-            }
-
-            // Model View transform
-            for v in &mut vertices {
-                v.position = *self.camera.view_mat() * *model * v.position;
-            }
-
-            // project transform
-            for v in &mut vertices {
-                v.position = *self.camera.get_frustum().get_mat() * v.position;
-            }
-
-            // save truely z into v.position.z
-            for v in &mut vertices {
-                v.position.z = -v.position.w * self.camera.get_frustum().near();
-            }
-
-            // perspective divide
-            for v in &mut vertices {
-                v.position.x /= v.position.w;
-                v.position.y /= v.position.w;
-                v.position.w = 1.0;
-            }
-
-            // Face Cull
-            if should_cull(
-                &vertices.map(|v| v.position.truncated_to_vec3()),
-                &-*math::Vec3::z_axis(),
-                self.front_face,
-                self.cull,
-            ) {
-                continue;
-            }
-
-            // Viewport transform
-            for v in &mut vertices {
-                v.position.x = (v.position.x + 1.0) * 0.5 * (self.viewport.w as f32 - 1.0)
-                    + self.viewport.x as f32;
-                v.position.y = self.viewport.h as f32
-                    - (v.position.y + 1.0) * 0.5 * (self.viewport.h as f32 - 1.0)
-                    + self.viewport.y as f32;
-            }
-
-            // split triangle into trapeziods
-            let [trap1, trap2] = &mut Trapezoid::from_triangle(&vertices);
-
-            // rasterization trapeziods
-            if let Some(trap) = trap1 {
-                self.draw_trapezoid(trap, texture_storage);
-            }
-            if let Some(trap) = trap2 {
-                self.draw_trapezoid(trap, texture_storage);
+            match self.rasterize_trianlge(model, vertices, texture_storage) {
+                RasterizeResult::Ok | RasterizeResult::Discard => {}
+                RasterizeResult::GenerateNewFace => {
+                    for i in 0..self.cliped_triangles.len() / 3 {
+                        let vertices = [
+                            self.cliped_triangles[i * 3],
+                            self.cliped_triangles[1 + i * 3],
+                            self.cliped_triangles[2 + i * 3],
+                        ];
+                        match self.rasterize_trianlge(model, vertices, texture_storage) {
+                            RasterizeResult::Ok => {}
+                            RasterizeResult::Discard | RasterizeResult::GenerateNewFace => {
+                                panic!("discard or generate new face from clipped face")
+                            }
+                        }
+                        self.cliped_triangles.clear();
+                    }
+                }
             }
         }
     }
@@ -160,6 +114,14 @@ impl renderer::RendererInterface for Renderer {
     fn get_face_cull(&self) -> FaceCull {
         self.cull
     }
+
+    fn enable_framework(&mut self) {
+        self.enable_framework = true;
+    }
+
+    fn disable_framework(&mut self) {
+        self.enable_framework = false;
+    }
 }
 
 impl Renderer {
@@ -174,7 +136,125 @@ impl Renderer {
             front_face: FrontFace::CW,
             cull: FaceCull::None,
             cliped_triangles: Vec::new(),
+            enable_framework: false,
         }
+    }
+
+    fn rasterize_trianlge(
+        &mut self,
+        model: &math::Mat4,
+        mut vertices: [Vertex; 3],
+        texture_storage: &TextureStorage,
+    ) -> RasterizeResult {
+        // call vertex changing function to change vertex position and set attribtues
+        for v in &mut vertices {
+            *v = self
+                .shader
+                .call_vertex_changing(v, &self.uniforms, texture_storage);
+        }
+
+        // Model transform
+        for v in &mut vertices {
+            v.position = *model * v.position;
+        }
+
+        // Face Cull
+        if should_cull(
+            &vertices.map(|v| v.position.truncated_to_vec3()),
+            self.camera.view_dir(),
+            self.front_face,
+            self.cull,
+        ) {
+            return RasterizeResult::Discard;
+        }
+
+        // view transform
+        for v in &mut vertices {
+            v.position = *self.camera.view_mat() * v.position;
+        }
+
+        // frustum clip
+        if vertices.iter().all(|v| {
+            !self
+                .camera
+                .get_frustum()
+                .contain(&v.position.truncated_to_vec3())
+        }) {
+            return RasterizeResult::Discard;
+        }
+
+        // near plane clip
+        if vertices
+            .iter()
+            .any(|v| v.position.z > self.camera.get_frustum().near())
+        {
+            let (face1, face2) =
+                crate::scanline::near_plane_clip(&vertices, self.camera.get_frustum().near());
+            self.cliped_triangles.extend(face1.iter());
+            if let Some(face) = face2 {
+                self.cliped_triangles.extend(face.iter());
+            }
+            return RasterizeResult::GenerateNewFace;
+        }
+
+        // project transform
+        for v in &mut vertices {
+            v.position = *self.camera.get_frustum().get_mat() * v.position;
+        }
+
+        // save truely z into v.position.z
+        for v in &mut vertices {
+            v.position.z = -v.position.w * self.camera.get_frustum().near();
+        }
+
+        // perspective divide
+        for v in &mut vertices {
+            v.position.x /= v.position.w;
+            v.position.y /= v.position.w;
+            v.position.w = 1.0;
+        }
+
+        // Viewport transform
+        for v in &mut vertices {
+            v.position.x = (v.position.x + 1.0) * 0.5 * (self.viewport.w as f32 - 1.0)
+                + self.viewport.x as f32;
+            v.position.y = self.viewport.h as f32
+                - (v.position.y + 1.0) * 0.5 * (self.viewport.h as f32 - 1.0)
+                + self.viewport.y as f32;
+        }
+
+        if self.enable_framework {
+            // draw line framework
+            for i in 0..3 {
+                let mut v1 = vertices[i];
+                let mut v2 = vertices[(i + 1) % 3];
+                v1.position.z = 1.0 / v1.position.z;
+                v2.position.z = 1.0 / v2.position.z;
+
+                rasterize_line(
+                    &Line::new(v1, v2),
+                    &self.shader.pixel_shading,
+                    &self.uniforms,
+                    texture_storage,
+                    &mut self.color_attachment,
+                    &mut self.depth_attachment,
+                );
+            }
+        } else {
+            // rasterization triangle
+            // split triangle into trapeziods
+            let [trap1, trap2] = &mut Trapezoid::from_triangle(&vertices);
+
+            // rasterization trapeziods
+            if let Some(trap) = trap1 {
+                self.draw_trapezoid(trap, texture_storage);
+            }
+            if let Some(trap) = trap2 {
+                self.draw_trapezoid(trap, texture_storage);
+            }
+        }
+
+        RasterizeResult::Ok
     }
 
     fn draw_trapezoid(&mut self, trap: &mut Trapezoid, texture_storage: &TextureStorage) {
