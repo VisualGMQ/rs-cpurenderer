@@ -90,7 +90,7 @@ fn main() {
     let mut renderer = create_renderer(WINDOW_WIDTH, WINDOW_HEIGHT, camera);
     renderer.set_front_face(FrontFace::CCW);
     renderer.set_face_cull(FaceCull::Back);
-    renderer.enable_framework();
+    // renderer.enable_framework();
     let mut texture_storage = TextureStorage::default();
 
     // data prepare, from OBJ model

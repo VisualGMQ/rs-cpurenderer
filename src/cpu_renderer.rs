@@ -53,7 +53,7 @@ impl renderer::RendererInterface for Renderer {
         vertices: &[Vertex],
         texture_storage: &TextureStorage,
     ) {
-        for i in 0..vertices.len() / 3 as usize {
+        for i in 0..vertices.len() / 3_usize {
             // convert 3D coordination to Homogeneous coordinates
             let vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 

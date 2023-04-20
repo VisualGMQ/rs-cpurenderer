@@ -43,7 +43,7 @@ impl RendererInterface for Renderer {
         vertices: &[Vertex],
         texture_storage: &TextureStorage,
     ) {
-        for i in 0..vertices.len() / 3 as usize {
+        for i in 0..vertices.len() / 3_usize {
             // convert 3D coordination to Homogeneous coordinates
             let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
@@ -61,7 +61,7 @@ impl RendererInterface for Renderer {
             // Face Cull
             if should_cull(
                 &vertices.map(|v| v.position.truncated_to_vec3()),
-                &-*math::Vec3::y_axis(),
+                &-*math::Vec3::z_axis(),
                 self.front_face,
                 self.cull,
             ) {

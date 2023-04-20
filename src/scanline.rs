@@ -180,7 +180,7 @@ pub(crate) fn near_plane_clip(
         if vertices[1].position.z > near {
             let new_vertex1 = near_plane_clip_line(&vertices[0], &vertices[2], near);
             let new_vertex2 = near_plane_clip_line(&vertices[1], &vertices[2], near);
-            return ([new_vertex1, new_vertex2, vertices[2]], None);
+            ([new_vertex1, new_vertex2, vertices[2]], None)
         } else if vertices[2].position.z > near {
             let new_vertex1 = near_plane_clip_line(&vertices[0], &vertices[1], near);
             let new_vertex2 = near_plane_clip_line(&vertices[2], &vertices[1], near);

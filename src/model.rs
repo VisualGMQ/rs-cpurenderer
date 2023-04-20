@@ -33,8 +33,10 @@ pub fn load_from_file(
     let scene = obj_loader::load_from_file(filename)?;
 
     for model in scene.models {
-        let mut mesh = Mesh::default();
-        mesh.name = Some(model.name.clone());
+        let mut mesh = Mesh {
+            name: Some(model.name.clone()),
+            ..Default::default()
+        };
         for face in model.faces {
             for vtx in face.vertices {
                 let position = scene.vertices[vtx.vertex as usize];
