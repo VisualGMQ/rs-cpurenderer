@@ -1,4 +1,4 @@
-use crate::shader::*;
+use crate::{math, shader::*};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Edge {
@@ -168,5 +168,62 @@ impl Scanline {
             width,
             y: init_y,
         }
+    }
+}
+
+pub(crate) fn near_plane_clip(
+    vertices: &[Vertex],
+    near: f32,
+) -> ([Vertex; 3], Option<[Vertex; 3]>) {
+    let near = -near;
+    if vertices[0].position.z > near {
+        if vertices[1].position.z > near {
+            let new_vertex1 = near_plane_clip_line(&vertices[0], &vertices[2], near);
+            let new_vertex2 = near_plane_clip_line(&vertices[1], &vertices[2], near);
+            return ([new_vertex1, new_vertex2, vertices[2]], None);
+        } else if vertices[2].position.z > near {
+            let new_vertex1 = near_plane_clip_line(&vertices[0], &vertices[1], near);
+            let new_vertex2 = near_plane_clip_line(&vertices[2], &vertices[1], near);
+            return ([new_vertex1, vertices[1], new_vertex2], None);
+        } else {
+            let new_vertex1 = near_plane_clip_line(&vertices[0], &vertices[1], near);
+            let new_vertex2 = near_plane_clip_line(&vertices[0], &vertices[2], near);
+            return (
+                [vertices[1], new_vertex2, new_vertex1],
+                Some([vertices[1], vertices[2], new_vertex2]),
+            );
+        }
+    } else if vertices[1].position.z > near {
+        if vertices[2].position.z > near {
+            let new_vertex1 = near_plane_clip_line(&vertices[1], &vertices[0], near);
+            let new_vertex2 = near_plane_clip_line(&vertices[2], &vertices[0], near);
+            return ([vertices[0], new_vertex1, new_vertex2], None);
+        } else {
+            let new_vertex1 = near_plane_clip_line(&vertices[2], &vertices[1], near);
+            let new_vertex2 = near_plane_clip_line(&vertices[0], &vertices[1], near);
+            return (
+                [vertices[0], new_vertex2, new_vertex1],
+                Some([vertices[0], new_vertex1, vertices[2]]),
+            );
+        }
+    } else {
+        let new_vertex1 = near_plane_clip_line(&vertices[2], &vertices[0], near);
+        let new_vertex2 = near_plane_clip_line(&vertices[2], &vertices[1], near);
+        return (
+            [vertices[0], new_vertex2, new_vertex1],
+            Some([vertices[0], vertices[1], new_vertex2]),
+        );
+    }
+}
+
+fn near_plane_clip_line(out: &Vertex, inner: &Vertex, near_plane_z: f32) -> Vertex {
+    let proportion = (near_plane_z - inner.position.z) / (out.position.z - inner.position.z);
+    let position = proportion * (out.position - inner.position) + inner.position;
+
+    let attributes = interp_attributes(&inner.attributes, &out.attributes, math::lerp, proportion);
+
+    Vertex {
+        position,
+        attributes,
     }
 }

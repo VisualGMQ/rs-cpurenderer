@@ -39,10 +39,9 @@ impl RendererInterface for Renderer {
         &mut self,
         model: &math::Mat4,
         vertices: &[Vertex],
-        count: u32,
         texture_storage: &TextureStorage,
     ) {
-        for i in 0..count as usize {
+        for i in 0..vertices.len() / 3 as usize {
             // convert 3D coordination to Homogeneous coordinates
             let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
 
@@ -164,7 +163,10 @@ impl RendererInterface for Renderer {
                             + berycentric.beta() / vertices[1].position.z
                             + berycentric.gamma() / vertices[2].position.z;
                         let z = 1.0 / inv_z;
-                        if self.depth_attachment.get(x, y) <= z {
+                        // depth test and near plane
+                        if z < self.camera.get_frustum().near()
+                            && self.depth_attachment.get(x, y) <= z
+                        {
                             let attr = get_corrected_attribute(z, &vertices, &berycentric);
                             //  call pixel shading function to get pixel color
                             let color = self.shader.call_pixel_shading(

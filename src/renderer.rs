@@ -35,7 +35,6 @@ pub trait RendererInterface {
         &mut self,
         model: &math::Mat4,
         vertices: &[Vertex],
-        count: u32,
         texture_storage: &TextureStorage,
     );
     fn get_rendered_image(&self) -> &[u8];

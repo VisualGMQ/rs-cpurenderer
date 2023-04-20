@@ -185,7 +185,6 @@ fn main() {
             renderer.draw_triangle(
                 &model,
                 &data.vertices,
-                (data.vertices.len() / 3).try_into().unwrap(),
                 &texture_storage,
             );
         }

@@ -18,6 +18,8 @@ pub struct Renderer {
     uniforms: Uniforms,
     front_face: FrontFace,
     cull: FaceCull,
+
+    cliped_triangles: Vec<Vertex>,
 }
 
 impl renderer::RendererInterface for Renderer {
@@ -41,12 +43,26 @@ impl renderer::RendererInterface for Renderer {
         &mut self,
         model: &math::Mat4,
         vertices: &[Vertex],
-        count: u32,
         texture_storage: &TextureStorage,
     ) {
+        let count = if self.cliped_triangles.is_empty() {
+            vertices
+        } else {
+            &self.cliped_triangles
+        }
+        .len()
+            / 3;
         for i in 0..count as usize {
             // convert 3D coordination to Homogeneous coordinates
-            let mut vertices = [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]];
+            let mut vertices = {
+                let vertices = if self.cliped_triangles.is_empty() {
+                    vertices
+                } else {
+                    &self.cliped_triangles
+                };
+
+                [vertices[i * 3], vertices[1 + i * 3], vertices[2 + i * 3]]
+            };
 
             // call vertex changing function to change vertex position and set attribtues
             for v in &mut vertices {
@@ -55,24 +71,9 @@ impl renderer::RendererInterface for Renderer {
                     .call_vertex_changing(v, &self.uniforms, texture_storage);
             }
 
-            // Model transform
+            // Model View transform
             for v in &mut vertices {
-                v.position = *model * v.position;
-            }
-
-            // Face Cull
-            if should_cull(
-                &vertices.map(|v| v.position.truncated_to_vec3()),
-                self.camera.view_dir(),
-                self.front_face,
-                self.cull,
-            ) {
-                continue;
-            }
-
-            // View transform
-            for v in &mut vertices {
-                v.position = *self.camera.view_mat() * v.position;
+                v.position = *self.camera.view_mat() * *model * v.position;
             }
 
             // project transform
@@ -90,6 +91,16 @@ impl renderer::RendererInterface for Renderer {
                 v.position.x /= v.position.w;
                 v.position.y /= v.position.w;
                 v.position.w = 1.0;
+            }
+
+            // Face Cull
+            if should_cull(
+                &vertices.map(|v| v.position.truncated_to_vec3()),
+                &-*math::Vec3::z_axis(),
+                self.front_face,
+                self.cull,
+            ) {
+                continue;
             }
 
             // Viewport transform
@@ -162,6 +173,7 @@ impl Renderer {
             uniforms: Default::default(),
             front_face: FrontFace::CW,
             cull: FaceCull::None,
+            cliped_triangles: Vec::new(),
         }
     }
 
