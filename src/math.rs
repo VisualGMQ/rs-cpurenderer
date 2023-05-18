@@ -603,7 +603,7 @@ impl Quaternion {
     }
 
     pub fn inverse(&self) -> Quaternion {
-        self.conjugate() / self.length()
+        self.conjugate() / self.length_square()
     }
 }
 
