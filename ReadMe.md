@@ -1,10 +1,6 @@
-A cpu 3D renderer based on pure rust.
-
 使用纯Rust编写的3D软渲染器。
 
 [B站视频教程](https://www.bilibili.com/video/BV1Nv4y1p79o/?spm_id_from=333.999.0.0&vd_source=cb60c670b9b482f512a7f10d235b9b30)
-
-之前写了一份完整的，源码放在Release下了。这个是重置版本。重置完之后会删掉Release版本。
 
 ## 目前的显示
 
@@ -36,6 +32,7 @@ cargo run --example sandbox --features gpu
 书籍：
 * 《3D游戏编程大师技巧》
 * 《Fundamentals of Computer Graphics》
+* 《线性代数及其应用》
 
 视频：
 * [【GAMES101-现代计算机图形学入门-闫令琪】](https://www.bilibili.com/video/BV1X7411F744/?share_source=copy_web&vd_source=e1b8baee842192a0e6b2b7d9ef8e10ef)中关于光栅化的部分。
