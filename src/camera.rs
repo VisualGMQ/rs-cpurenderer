@@ -26,14 +26,16 @@ impl Frustum {
                     0.0,        0.0,         1.0, 0.0,
                     0.0,        0.0, -1.0 / near, 0.0,
                 ])
-            } else {
+            } else { // when in GPU, [we use opengl matrix](http://www.songho.ca/opengl/gl_projectionmatrix.html)
                 let half_w = near * fovy.tan();
                 let half_h = half_w / aspect;
+                let near = near.abs();
+                let far = far.abs();
                 // with far plane, clamp x,y,z in [-1, 1]
                 math::Mat4::from_row(&[
                     near / half_w,           0.0,                       0.0,                             0.0,
                               0.0, near / half_h,                       0.0,                             0.0,
-                              0.0,           0.0, far + near / (far - near), 2.0 * far * near / (far - near),
+                              0.0,           0.0, far + near / (near - far), 2.0 * far * near / (near - far),
                               0.0,           0.0,                      -1.0,                             0.0,
                 ])
             },

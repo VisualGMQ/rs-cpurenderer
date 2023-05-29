@@ -54,3 +54,4 @@ cargo run --example sandbox --features gpu
 * [RenderHelp项目](https://github.com/skywind3000/RenderHelp)
 * [mini3d项目](https://github.com/skywind3000/mini3d)
 * [光栅化实现](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html)
+* [图形学|shader|用一篇文章理解半透明渲染、透明度测试和混合、提前深度测试并彻底理清渲染顺序。](https://zhuanlan.zhihu.com/p/263566318)

@@ -97,6 +97,7 @@ impl RendererInterface for Renderer {
                 v.position.y = self.viewport.h as f32
                     - (v.position.y + 1.0) * 0.5 * (self.viewport.h as f32 - 1.0)
                     + self.viewport.y as f32;
+                v.position.w = (v.position.w + 1.0) / 2.0;
             }
 
             // find AABB for triangle
