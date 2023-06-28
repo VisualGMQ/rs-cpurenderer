@@ -90,13 +90,12 @@ fn main() {
     let mut renderer = create_renderer(WINDOW_WIDTH, WINDOW_HEIGHT, camera);
     renderer.set_front_face(FrontFace::CCW);
     renderer.set_face_cull(FaceCull::Back);
-    // renderer.enable_framework();
     let mut texture_storage = TextureStorage::default();
 
     // data prepare, from OBJ model
-    const MODEL_ROOT_DIR: &str = "./resources/Red";
+    const MODEL_ROOT_DIR: &str = "./resources/Son Goku";
     let (meshes, mtllibs) = model::load_from_file(
-        &format!("{}/{}", MODEL_ROOT_DIR, "Red.obj"),
+        &format!("{}/{}", MODEL_ROOT_DIR, "Goku.obj"),
         model::PreOperation::None,
     )
     .unwrap();
@@ -157,6 +156,9 @@ fn main() {
             if event_key_down(Key::from_char('e')) {
                 camera.move_offset(math::Vec3::new(0.0, -0.01, 0.0));
             }
+            if event_key_down(Key::from_char('t')) {
+                renderer.toggle_framework();
+            }
         }
 
         // render
@@ -164,7 +166,7 @@ fn main() {
         renderer.clear_depth();
 
         let model = math::create_translate(&math::Vec3::new(0.0, 0.0, -4.0))
-            * math::create_eular_rotate_y(rotation.to_radians());
+            * math::create_eular_rotate_x(rotation.to_radians());
 
         for data in &vertex_datas {
             // set data into uniform

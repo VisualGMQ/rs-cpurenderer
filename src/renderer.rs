@@ -50,6 +50,7 @@ pub trait RendererInterface {
     fn get_face_cull(&self) -> FaceCull;
     fn enable_framework(&mut self);
     fn disable_framework(&mut self);
+    fn toggle_framework(&mut self);
 }
 
 pub fn texture_sample(texture: &Texture, texcoord: &math::Vec2) -> math::Vec4 {
@@ -78,7 +79,7 @@ pub(crate) fn should_cull(
 }
 
 pub(crate) fn rasterize_line(
-    line: &Line,
+    line: &mut Line,
     shading: &shader::PixelShading,
     uniforms: &shader::Uniforms,
     texture_storage: &TextureStorage,
@@ -108,9 +109,9 @@ pub(crate) fn rasterize_line(
             let y = y as u32;
             if depth_attachment.get(x, y) <= z {
                 let mut attr = vertex.attributes;
-                shader::attributes_foreach(&mut attr, |value| value * z);
+                shader::attributes_foreach(&mut attr, |value| value / rhw);
                 // call pixel shading function to get shading color
-                let color = shading(&vertex.attributes, uniforms, texture_storage);
+                let color = shading(&attr, uniforms, texture_storage);
                 color_attachment.set(x, y, &color);
                 depth_attachment.set(x, y, z);
             }

@@ -35,7 +35,7 @@ impl Frustum {
                 math::Mat4::from_row(&[
                     near / half_w,           0.0,                       0.0,                             0.0,
                               0.0, near / half_h,                       0.0,                             0.0,
-                              0.0,           0.0, far + near / (near - far), 2.0 * far * near / (near - far),
+                              0.0,           0.0,(far + near) / (near - far), 2.0 * far * near / (near - far),
                               0.0,           0.0,                      -1.0,                             0.0,
                 ])
             },

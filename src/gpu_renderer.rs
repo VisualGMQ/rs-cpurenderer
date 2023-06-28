@@ -4,7 +4,7 @@ use crate::{
     line::Line,
     math::{self, Berycentric},
     renderer::*,
-    shader::*,
+    shader::{*, self},
     texture::TextureStorage,
 };
 
@@ -74,9 +74,9 @@ impl RendererInterface for Renderer {
             }
 
             // set truely z
-            /* NOTIC: in OpenGL, after MVP transform, z in [-1, 1], then OpenGL do `z = (z + 1) / 2` to make z in [0, 1],
+            /* NOTIC: in OpenGL, after MVP & Perspective divide, z in [-1, 1], then OpenGL do `z = (z + 1) / 2` to make z in [0, 1],
                 then, use `1 / z` to test depth.
-                But here we replace transformed z to it's original z which transformed after MV.
+                But here we replace transformed z to it's original z which transformed after MVP.
                 Traditionally we will save `-1.0 / v.position.w` into v.rhw and use it interpolate attributes.
                 But here I don't do it(because I'm lazy :D, maybe do it later).
             */
@@ -88,6 +88,7 @@ impl RendererInterface for Renderer {
             for v in &mut vertices {
                 v.position.x /= v.position.w;
                 v.position.y /= v.position.w;
+                v.position.w = 1.0;
             }
 
             // Viewport transform
@@ -97,7 +98,6 @@ impl RendererInterface for Renderer {
                 v.position.y = self.viewport.h as f32
                     - (v.position.y + 1.0) * 0.5 * (self.viewport.h as f32 - 1.0)
                     + self.viewport.y as f32;
-                v.position.w = (v.position.w + 1.0) / 2.0;
             }
 
             // find AABB for triangle
@@ -153,11 +153,12 @@ impl RendererInterface for Renderer {
                 for i in 0..3 {
                     let mut v1 = vertices[i];
                     let mut v2 = vertices[(i + 1) % 3];
-                    v1.position.z = 1.0 / v1.position.z;
-                    v2.position.z = 1.0 / v2.position.z;
+
+                    shader::vertex_rhw_init(&mut v1);
+                    shader::vertex_rhw_init(&mut v2);
 
                     rasterize_line(
-                        &Line::new(v1, v2),
+                        &mut Line::new(v1, v2),
                         &self.shader.pixel_shading,
                         &self.uniforms,
                         texture_storage,
@@ -242,6 +243,10 @@ impl RendererInterface for Renderer {
 
     fn disable_framework(&mut self) {
         self.enable_framework = false;
+    }
+
+    fn toggle_framework(&mut self) {
+        self.enable_framework = !self.enable_framework;
     }
 }
 

@@ -122,6 +122,10 @@ impl renderer::RendererInterface for Renderer {
     fn disable_framework(&mut self) {
         self.enable_framework = false;
     }
+
+    fn toggle_framework(&mut self) {
+        self.enable_framework = !self.enable_framework;
+    }
 }
 
 impl Renderer {
@@ -228,11 +232,12 @@ impl Renderer {
             for i in 0..3 {
                 let mut v1 = vertices[i];
                 let mut v2 = vertices[(i + 1) % 3];
-                v1.position.z = 1.0 / v1.position.z;
-                v2.position.z = 1.0 / v2.position.z;
+
+                shader::vertex_rhw_init(&mut v1);
+                shader::vertex_rhw_init(&mut v2);
 
                 rasterize_line(
-                    &Line::new(v1, v2),
+                    &mut Line::new(v1, v2),
                     &self.shader.pixel_shading,
                     &self.uniforms,
                     texture_storage,
